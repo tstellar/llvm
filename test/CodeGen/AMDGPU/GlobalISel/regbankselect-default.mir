@@ -1,0 +1,22 @@
+# RUN: llc -O0 -march amdgcn -mcpu=fiji -run-pass=regbankselect -global-isel %s -o - | FileCheck %s
+
+# Check the default mappings for various instructions.
+
+--- |
+
+  define void @test_fconstant() { ret void }
+...
+
+---
+# CHECK-LABEL: name: test_fconstant
+name:            test_fconstant
+legalized:       true
+# CHECK: registers:
+# CHECK:   - { id: 0, class: sgpr }
+registers:
+  - { id: 0, class: _ }
+body: |
+  bb.0:
+    ; CHECK: %0(s32) = G_FCONSTANT float 1.0
+    %0(s32) = G_FCONSTANT float 1.0
+...
