@@ -144,7 +144,6 @@ bool AMDGPUCallLowering::lowerFormalArguments(MachineIRBuilder &MIRBuilder,
   for (unsigned i = 0; i != NumArgs; ++i, ++CurOrigArg) {
     EVT ValEVT = TLI.getValueType(DL, CurOrigArg->getType());
 
-    dbgs() << *CurOrigArg << '\n';
     // We can only hanlde simple value types at the moment.
     ISD::ArgFlagsTy Flags;
     ArgInfo OrigArg{VRegs[i], CurOrigArg->getType()};
@@ -192,7 +191,6 @@ bool AMDGPUCallLowering::lowerFormalArguments(MachineIRBuilder &MIRBuilder,
     }
   }
 
-  dbgs() << "Add live ins \n";
   Function::const_arg_iterator Arg = F.arg_begin();
 
   if (F.getCallingConv() == CallingConv::AMDGPU_VS ||
