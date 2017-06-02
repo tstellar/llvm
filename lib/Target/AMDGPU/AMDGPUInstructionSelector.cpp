@@ -39,6 +39,7 @@ bool AMDGPUInstructionSelector::selectCOPY(MachineInstr &I) const {
   MachineBasicBlock *BB = I.getParent();
   MachineFunction *MF = BB->getParent();
   MachineRegisterInfo &MRI = MF->getRegInfo();
+  I.setDesc(TII.get(TargetOpcode::COPY));
   unsigned Size = RBI.getSizeInBits(I.getOperand(0).getReg(), MRI, TRI);
   for (const MachineOperand &MO : I.operands()) {
     if (TargetRegisterInfo::isPhysicalRegister(MO.getReg()))
@@ -666,6 +667,8 @@ bool AMDGPUInstructionSelector::select(MachineInstr &I) const {
     break;
   case TargetOpcode::G_ADD:
     return selectG_ADD(I);
+  case TargetOpcode::G_BITCAST:
+    return selectCOPY(I);
   case TargetOpcode::G_CONSTANT:
   case TargetOpcode::G_FCONSTANT:
     return selectG_CONSTANT(I);
