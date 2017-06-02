@@ -301,6 +301,7 @@ AMDGPURegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
   switch (MI.getOpcode()) {
   default:
     return getInvalidInstructionMapping();
+  case AMDGPU::G_AND:
   case AMDGPU::G_OR:
     if (isSALUMapping(MI))
       return getDefaultMappingSOP(MI);
