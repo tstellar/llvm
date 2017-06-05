@@ -1,0 +1,39 @@
+# RUN: llc -march=amdgcn -mcpu=fiji -run-pass=instruction-select -verify-machineinstrs -global-isel %s -o - | FileCheck %s -check-prefixes=GCN
+
+--- |
+  define amdgpu_kernel void @shl(i32 addrspace(1)* %global0) {ret void}
+...
+---
+
+name:            shl
+legalized:       true
+regBankSelected: true
+
+# GCN-LABEL: name: shl
+body: |
+  bb.0:
+    liveins: %sgpr0, %sgpr1, %vgpr0, %vgpr3_vgpr4
+    %0:sgpr(s32) = COPY %sgpr0
+    %1:sgpr(s32) = COPY %sgpr1
+    %2:vgpr(s32) = COPY %vgpr0
+    %3:vgpr(s64) = COPY %vgpr3_vgpr4
+
+    ; shl ss
+    ; GCN: S_LSHL_B32
+    %4:sgpr(s32) = G_SHL %0, %1
+
+    ; shl vs
+    ; GCN: V_LSHL_B32_e64
+    %5:vgpr(s32) = G_SHL %2, %4 
+
+    ; shl sv
+    ; GCN: V_LSHL_B32_e64
+    %6:vgpr(s32) = G_SHL %4, %5
+
+    ; shl vv
+    ; GCN: V_LSHL_B32_e64
+    %7:vgpr(s32) = G_SHL %6, %2
+
+    G_STORE %7, %3 :: (store 4 into %ir.global0)
+...
+---
