@@ -60,6 +60,12 @@ private:
   bool hasOnlySGPROperands(const MachineInstr &I, const MachineRegisterInfo &MRI) const;
   bool selectG_SELECT(MachineInstr &I) const;
   bool selectG_STORE(MachineInstr &I) const;
+  unsigned getSALUOpcode(const MachineInstr &I) const;
+  bool selectSimpleSALU(MachineInstr &I) const;
+  unsigned getVALUOpcode(const MachineInstr &I) const;
+  bool selectSimpleVALU(MachineInstr &I) const;
+  bool selectSimple(MachineInstr &I) const;
+  bool selectImpl(MachineInstr &I) const;
 
   const SIInstrInfo &TII;
   const SIRegisterInfo &TRI;
