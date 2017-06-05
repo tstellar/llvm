@@ -46,6 +46,7 @@ private:
   };
 
   MachineOperand getSubOperand64(MachineOperand &MO, unsigned SubIdx) const;
+  bool selectCOPY(MachineInstr &I) const;
   bool selectG_CONSTANT(MachineInstr &I) const;
   bool selectG_ADD(MachineInstr &I) const;
   bool selectG_GEP(MachineInstr &I) const;
