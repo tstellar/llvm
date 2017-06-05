@@ -660,6 +660,10 @@ unsigned AMDGPUInstructionSelector::getSALUOpcode(const MachineInstr &I) const {
   unsigned Size0 = RBI.getSizeInBits(I.getOperand(0).getReg(), MRI, TRI);
   switch (I.getOpcode()) {
   default: break;
+  case TargetOpcode::G_AND:
+    if (Size0 == 32)
+      return AMDGPU::S_AND_B32;
+    break;
   case TargetOpcode::G_OR:
     if (Size0 == 32)
       return AMDGPU::S_OR_B32;
@@ -683,6 +687,10 @@ unsigned AMDGPUInstructionSelector::getVALUOpcode(const MachineInstr &I) const {
   unsigned Size0 = RBI.getSizeInBits(I.getOperand(0).getReg(), MRI, TRI);
   switch (I.getOpcode()) {
   default: break;
+  case TargetOpcode::G_AND:
+    if (Size0 == 32)
+      return AMDGPU::V_AND_B32_e64;
+    break;
   case TargetOpcode::G_OR:
     if (Size0 == 32)
       return AMDGPU::V_OR_B32_e64;
@@ -734,6 +742,7 @@ bool AMDGPUInstructionSelector::select(MachineInstr &I) const {
   switch (I.getOpcode()) {
   default:
     break;
+  case TargetOpcode::G_AND:
   case TargetOpcode::G_OR:
     return selectSimple(I);
   case TargetOpcode::G_ADD:
