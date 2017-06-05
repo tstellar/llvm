@@ -668,6 +668,10 @@ unsigned AMDGPUInstructionSelector::getSALUOpcode(const MachineInstr &I) const {
     if (Size0 == 32)
       return AMDGPU::S_OR_B32;
     break;
+  case TargetOpcode::G_SHL:
+    if (Size0 == 32)
+      return AMDGPU::S_LSHL_B32;
+    break;
   }
   return AMDGPU::INSTRUCTION_LIST_END;
 }
@@ -694,6 +698,10 @@ unsigned AMDGPUInstructionSelector::getVALUOpcode(const MachineInstr &I) const {
   case TargetOpcode::G_OR:
     if (Size0 == 32)
       return AMDGPU::V_OR_B32_e64;
+    break;
+  case TargetOpcode::G_SHL:
+    if (Size0 == 32)
+      return AMDGPU::V_LSHL_B32_e64;
     break;
   }
   return AMDGPU::INSTRUCTION_LIST_END;
@@ -744,6 +752,7 @@ bool AMDGPUInstructionSelector::select(MachineInstr &I) const {
     break;
   case TargetOpcode::G_AND:
   case TargetOpcode::G_OR:
+  case TargetOpcode::G_SHL:
     return selectSimple(I);
   case TargetOpcode::G_ADD:
     return selectG_ADD(I);
