@@ -15,4 +15,4 @@ def VGPRRegBank : RegisterBank<"VGPR",
   [VGPR_32, VReg_64, VReg_96, VReg_128, VReg_256, VReg_512]
 >;
 
-def SCCRegBank : RegisterBank <"SCC", [SCC_CLASS ]>;
+def SCCRegBank : RegisterBank <"SCC", [SCC_CLASS, SReg_32 ]>;
