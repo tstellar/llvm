@@ -473,8 +473,8 @@ RegBankSelect::MappingCost RegBankSelect::computeMapping(
     uint64_t RepairCost = getRepairCost(MO, ValMapping);
 
     // This is an impossible to repair cost.
-    if (RepairCost == std::numeric_limits<unsigned>::max())
-      continue;
+    if (RepairCost == UINT_MAX)
+      return MappingCost::ImpossibleCost();
 
     // Bias used for splitting: 5%.
     const uint64_t PercentageForBias = 5;
