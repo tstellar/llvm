@@ -14,6 +14,7 @@ tablegen(LLVM AMDGPUGenDisassemblerTables.inc -gen-disassembler)
 tablegen(LLVM AMDGPUGenMCPseudoLowering.inc -gen-pseudo-lowering)
 if(LLVM_BUILD_GLOBAL_ISEL)
   tablegen(LLVM AMDGPUGenRegisterBank.inc -gen-register-bank)
+  tablegen(LLVM AMDGPUGenGlobalISel.inc -gen-global-isel)
 endif()
 add_public_tablegen_target(AMDGPUCommonTableGen)
 
