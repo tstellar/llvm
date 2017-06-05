@@ -201,8 +201,7 @@ bool AMDGPUCallLowering::lowerFormalArguments(MachineIRBuilder &MIRBuilder,
 
   if (F.getCallingConv() == CallingConv::AMDGPU_VS ||
       F.getCallingConv() == CallingConv::AMDGPU_PS) {
-    for (unsigned i = 0; i != NumArgs; ++i, ++Arg) {
-       dbgs() <<"i = " << i << '\n';
+    for (unsigned i = 0; i != ArgLocs.size(); ++i, ++Arg) {
        if (Skipped.test(i))
           continue;
       CCValAssign &VA = ArgLocs[i];
@@ -213,7 +212,7 @@ bool AMDGPUCallLowering::lowerFormalArguments(MachineIRBuilder &MIRBuilder,
     return true; 
   }
 
-  for (unsigned i = 0; i != NumArgs; ++i, ++Arg) {
+  for (unsigned i = 0; i != ArgLocs.size(); ++i, ++Arg) {
     // FIXME: We should be getting DebugInfo from the arguments some how.
     CCValAssign &VA = ArgLocs[i];
     lowerParameter(MIRBuilder, Arg->getType(),
