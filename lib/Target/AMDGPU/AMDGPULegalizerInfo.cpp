@@ -13,6 +13,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "AMDGPULegalizerInfo.h"
+#include "AMDGPUSubtarget.h"
+#include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Type.h"
@@ -64,6 +70,13 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo() {
   setAction({G_GEP, P2}, Legal);
   setAction({G_GEP, 1, S64}, Legal);
 
+  //setDefaultAction(G_INTRINSIC_W_SIDE_EFFECTS, Custom);
+  //setDefaultAction(G_INTRINSIC, Custom);
+
+  // FIXME: We probably want custom for all intrinsics.
+  //setAction({G_INTRINSIC_W_SIDE_EFFECTS, S32}, Custom);
+  //setAction({G_INTRINSIC, S32}, Custom);
+  //
   setAction({G_ICMP, S1}, Legal);
   setAction({G_ICMP, 1, S32}, Legal);
 
