@@ -50,11 +50,15 @@ private:
   bool selectG_CONSTANT(MachineInstr &I) const;
   bool selectG_ADD(MachineInstr &I) const;
   bool selectG_GEP(MachineInstr &I) const;
+  bool selectG_ICMP(MachineInstr &I) const;
+  bool selectG_INTRINSIC_W_SIDE_EFFECTS(MachineInstr &I) const;
   bool hasVgprParts(ArrayRef<GEPInfo> AddrInfo) const;
   void getAddrModeInfo(const MachineInstr &Load, const MachineRegisterInfo &MRI,
                        SmallVectorImpl<GEPInfo> &AddrInfo) const;
   bool selectSMRD(MachineInstr &I, ArrayRef<GEPInfo> AddrInfo) const;
   bool selectG_LOAD(MachineInstr &I) const;
+  bool hasOnlySGPROperands(const MachineInstr &I, const MachineRegisterInfo &MRI) const;
+  bool selectG_SELECT(MachineInstr &I) const;
   bool selectG_STORE(MachineInstr &I) const;
 
   const SIInstrInfo &TII;
