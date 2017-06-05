@@ -147,75 +147,16 @@ static int64_t getConstant(const MachineInstr *MI) {
   return MI->getOperand(1).getCImm()->getSExtValue();
 }
 
-static unsigned getV_CMPOpcode(CmpInst::Predicate P, unsigned Size) {
-  assert(Size == 32 || Size == 64);
-  switch (P) {
-  default:
-    llvm_unreachable("Unknown condition code!");
-  case CmpInst::ICMP_NE:
-    return Size == 32 ? AMDGPU::V_CMP_NE_U32_e64 : AMDGPU::V_CMP_NE_U64_e64;
-  case CmpInst::ICMP_EQ:
-    return Size == 32 ? AMDGPU::V_CMP_EQ_U32_e64 : AMDGPU::V_CMP_EQ_U64_e64;
-  case CmpInst::ICMP_SGT:
-    return Size == 32 ? AMDGPU::V_CMP_GT_I32_e64 : AMDGPU::V_CMP_GT_I64_e64;
-  case CmpInst::ICMP_SGE:
-    return Size == 32 ? AMDGPU::V_CMP_GE_I32_e64 : AMDGPU::V_CMP_GE_I64_e64;
-  case CmpInst::ICMP_SLT:
-    return Size == 32 ? AMDGPU::V_CMP_LT_I32_e64 : AMDGPU::V_CMP_LT_I64_e64;
-  case CmpInst::ICMP_SLE:
-    return Size == 32 ? AMDGPU::V_CMP_LE_I32_e64 : AMDGPU::V_CMP_LE_I64_e64;
-  case CmpInst::ICMP_UGT:
-    return Size == 32 ? AMDGPU::V_CMP_GT_U32_e64 : AMDGPU::V_CMP_GT_U64_e64;
-  case CmpInst::ICMP_UGE:
-    return Size == 32 ? AMDGPU::V_CMP_GE_U32_e64 : AMDGPU::V_CMP_GE_U64_e64;
-  case CmpInst::ICMP_ULT:
-    return Size == 32 ? AMDGPU::V_CMP_LT_U32_e64 : AMDGPU::V_CMP_LT_U64_e64;
-  case CmpInst::ICMP_ULE:
-    return Size == 32 ? AMDGPU::V_CMP_LE_U32_e64 : AMDGPU::V_CMP_LE_U64_e64;
-  }
-}
-
-static unsigned getS_CMPOpcode(CmpInst::Predicate P, unsigned Size) {
-  // FIXME: VI supports 64-bit comparse.
-  assert(Size == 32);
-  switch (P) {
-  default:
-    llvm_unreachable("Unknown condition code!");
-  case CmpInst::ICMP_NE:
-    return AMDGPU::S_CMP_LG_U32;
-  case CmpInst::ICMP_EQ:
-    return AMDGPU::S_CMP_EQ_U32;
-  case CmpInst::ICMP_SGT:
-    return AMDGPU::S_CMP_GT_I32;
-  case CmpInst::ICMP_SGE:
-    return AMDGPU::S_CMP_GE_I32;
-  case CmpInst::ICMP_SLT:
-    return AMDGPU::S_CMP_LT_I32;
-  case CmpInst::ICMP_SLE:
-    return AMDGPU::S_CMP_LE_I32;
-  case CmpInst::ICMP_UGT:
-    return AMDGPU::S_CMP_GT_U32;
-  case CmpInst::ICMP_UGE:
-    return AMDGPU::S_CMP_GE_U32;
-  case CmpInst::ICMP_ULT:
-    return AMDGPU::S_CMP_LT_U32;
-  case CmpInst::ICMP_ULE:
-    return AMDGPU::S_CMP_LE_U32;
-  }
-}
-
 bool AMDGPUInstructionSelector::selectG_ICMP(MachineInstr &I) const {
   MachineBasicBlock *BB = I.getParent();
   MachineFunction *MF = BB->getParent();
   MachineRegisterInfo &MRI = MF->getRegInfo();
   DebugLoc DL = I.getDebugLoc();
 
-  unsigned SrcReg = I.getOperand(2).getReg();
-  unsigned Size = RBI.getSizeInBits(SrcReg, MRI, TRI);
-  // FIXME: VI supports 64-bit compares.
-  assert(Size == 32);
   if (hasOnlySGPROperands(I, MRI)) {
-    unsigned Opcode = getS_CMPOpcode((CmpInst::Predicate)I.getOperand(1).getPredicate(), Size);
+    unsigned Opcode = getSALUOpcode(I);
+    if (Opcode == AMDGPU::INSTRUCTION_LIST_END)
+      return false;
 
     // FIXME: We need a beter solution for handling condition codes.
     MachineInstr *ICmp = BuildMI(*BB, &I, DL, TII.get(Opcode))
@@ -230,8 +171,9 @@ bool AMDGPUInstructionSelector::selectG_ICMP(MachineInstr &I) const {
     return Ret;
   }
 
-  assert(Size == 32 || Size == 64);
-  unsigned Opcode = getV_CMPOpcode((CmpInst::Predicate)I.getOperand(1).getPredicate(), Size);
+  unsigned Opcode = getVALUOpcode(I);
+  if (Opcode == AMDGPU::INSTRUCTION_LIST_END)
+    return false;
   MachineInstr *ICmp = BuildMI(*BB, &I, DL, TII.get(Opcode),
             I.getOperand(0).getReg())
             .add(I.getOperand(2))
@@ -666,6 +608,37 @@ bool AMDGPUInstructionSelector::selectG_LOAD(MachineInstr &I) const {
   return Ret;
 }
 
+static unsigned getS_CMPOpcode(CmpInst::Predicate P, unsigned Size) {
+  // FIXME: VI supports 64-bit comparse.
+  if (Size == 32) {
+    switch (P) {
+    default:
+      break;
+    case CmpInst::ICMP_NE:
+      return AMDGPU::S_CMP_LG_U32;
+    case CmpInst::ICMP_EQ:
+      return AMDGPU::S_CMP_EQ_U32;
+    case CmpInst::ICMP_SGT:
+      return AMDGPU::S_CMP_GT_I32;
+    case CmpInst::ICMP_SGE:
+      return AMDGPU::S_CMP_GE_I32;
+    case CmpInst::ICMP_SLT:
+      return AMDGPU::S_CMP_LT_I32;
+    case CmpInst::ICMP_SLE:
+      return AMDGPU::S_CMP_LE_I32;
+    case CmpInst::ICMP_UGT:
+      return AMDGPU::S_CMP_GT_U32;
+    case CmpInst::ICMP_UGE:
+      return AMDGPU::S_CMP_GE_U32;
+    case CmpInst::ICMP_ULT:
+      return AMDGPU::S_CMP_LT_U32;
+    case CmpInst::ICMP_ULE:
+      return AMDGPU::S_CMP_LE_U32;
+    }
+  }
+  return AMDGPU::INSTRUCTION_LIST_END;
+}
+
 unsigned AMDGPUInstructionSelector::getSALUOpcode(const MachineInstr &I) const {
   const MachineBasicBlock *BB = I.getParent();
   const MachineFunction *MF = BB->getParent();
@@ -677,6 +650,11 @@ unsigned AMDGPUInstructionSelector::getSALUOpcode(const MachineInstr &I) const {
     if (Size0 == 32)
       return AMDGPU::S_AND_B32;
     break;
+  case TargetOpcode::G_ICMP: {
+    CmpInst::Predicate P = (CmpInst::Predicate)I.getOperand(1).getPredicate();
+    unsigned Size2 = RBI.getSizeInBits(I.getOperand(2).getReg(), MRI, TRI);
+    return getS_CMPOpcode(P, Size2);
+  }
   case TargetOpcode::G_OR:
     if (Size0 == 32)
       return AMDGPU::S_OR_B32;
@@ -695,6 +673,36 @@ bool AMDGPUInstructionSelector::selectSimpleSALU(MachineInstr &I) const {
     return false;
   I.setDesc(TII.get(Opcode));
   return constrainSelectedInstRegOperands(I, TII, TRI, RBI);
+}
+
+static unsigned getV_CMPOpcode(CmpInst::Predicate P, unsigned Size) {
+  if (Size == 32) {
+    switch (P) {
+    default:
+      break;
+    case CmpInst::ICMP_NE:
+      return AMDGPU::V_CMP_NE_U32_e64;
+    case CmpInst::ICMP_EQ:
+      return AMDGPU::V_CMP_EQ_U32_e64;
+    case CmpInst::ICMP_SGT:
+      return AMDGPU::V_CMP_GT_I32_e64;
+    case CmpInst::ICMP_SGE:
+      return AMDGPU::V_CMP_GE_I32_e64;
+    case CmpInst::ICMP_SLT:
+      return AMDGPU::V_CMP_LT_I32_e64;
+    case CmpInst::ICMP_SLE:
+      return AMDGPU::V_CMP_LE_I32_e64;
+    case CmpInst::ICMP_UGT:
+      return AMDGPU::V_CMP_GT_U32_e64;
+    case CmpInst::ICMP_UGE:
+      return AMDGPU::V_CMP_GE_U32_e64;
+    case CmpInst::ICMP_ULT:
+      return AMDGPU::V_CMP_LT_U32_e64;
+    case CmpInst::ICMP_ULE:
+      return AMDGPU::V_CMP_LE_U32_e64;
+    }
+  }
+  return AMDGPU::INSTRUCTION_LIST_END;
 }
 
 unsigned AMDGPUInstructionSelector::getVALUOpcode(const MachineInstr &I) const {
@@ -737,6 +745,11 @@ unsigned AMDGPUInstructionSelector::getVALUOpcode(const MachineInstr &I) const {
         RBI.getSizeInBits(I.getOperand(1).getReg(), MRI, TRI) == 32)
       return AMDGPU::V_CVT_U32_F32_e64;
     break;
+  case TargetOpcode::G_ICMP: {
+    CmpInst::Predicate P = (CmpInst::Predicate)I.getOperand(1).getPredicate();
+    unsigned Size2 = RBI.getSizeInBits(I.getOperand(2).getReg(), MRI, TRI);
+    return getV_CMPOpcode(P, Size2);
+  }
   case TargetOpcode::G_OR:
     if (Size0 == 32)
       return AMDGPU::V_OR_B32_e64;
