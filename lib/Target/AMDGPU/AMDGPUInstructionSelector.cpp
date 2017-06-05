@@ -653,6 +653,75 @@ bool AMDGPUInstructionSelector::selectG_LOAD(MachineInstr &I) const {
   return Ret;
 }
 
+unsigned AMDGPUInstructionSelector::getSALUOpcode(const MachineInstr &I) const {
+  const MachineBasicBlock *BB = I.getParent();
+  const MachineFunction *MF = BB->getParent();
+  const MachineRegisterInfo &MRI = MF->getRegInfo();
+  unsigned Size0 = RBI.getSizeInBits(I.getOperand(0).getReg(), MRI, TRI);
+  switch (I.getOpcode()) {
+  default: break;
+  case TargetOpcode::G_OR:
+    if (Size0 == 32)
+      return AMDGPU::S_OR_B32;
+    break;
+  }
+  return AMDGPU::INSTRUCTION_LIST_END;
+}
+
+bool AMDGPUInstructionSelector::selectSimpleSALU(MachineInstr &I) const {
+  unsigned Opcode = getSALUOpcode(I);
+  if (Opcode == AMDGPU::INSTRUCTION_LIST_END)
+    return false;
+  I.setDesc(TII.get(Opcode));
+  return constrainSelectedInstRegOperands(I, TII, TRI, RBI);
+}
+
+unsigned AMDGPUInstructionSelector::getVALUOpcode(const MachineInstr &I) const {
+  const MachineBasicBlock *BB = I.getParent();
+  const MachineFunction *MF = BB->getParent();
+  const MachineRegisterInfo &MRI = MF->getRegInfo();
+  unsigned Size0 = RBI.getSizeInBits(I.getOperand(0).getReg(), MRI, TRI);
+  switch (I.getOpcode()) {
+  default: break;
+  case TargetOpcode::G_OR:
+    if (Size0 == 32)
+      return AMDGPU::V_OR_B32_e64;
+    break;
+  }
+  return AMDGPU::INSTRUCTION_LIST_END;
+}
+
+bool AMDGPUInstructionSelector::selectSimpleVALU(MachineInstr &I) const {
+  MachineBasicBlock *BB = I.getParent();
+  const DebugLoc &DL = I.getDebugLoc();
+  unsigned Opcode = getVALUOpcode(I);
+  if (Opcode == AMDGPU::INSTRUCTION_LIST_END)
+    return false;
+
+  const MCInstrDesc &Desc = TII.get(Opcode);
+  MachineInstrBuilder VALU =
+      BuildMI(*BB, &I, DL, Desc, I.getOperand(0).getReg());
+  for (unsigned i = 1, OpIdx = 1, e = Desc.NumOperands; i != e; ++i) {
+    if (Desc.OpInfo[i].RegClass != -1) {
+      VALU.addReg(I.getOperand(OpIdx++).getReg());
+    }
+  }
+  I.eraseFromParent();
+  return constrainSelectedInstRegOperands(*VALU, TII, TRI, RBI);
+}
+
+bool AMDGPUInstructionSelector::selectSimple(MachineInstr &I) const {
+  MachineBasicBlock *BB = I.getParent();
+  MachineFunction *MF = BB->getParent();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+
+  const RegisterBank *OpBank = RBI.getRegBank(I.getOperand(0).getReg(),
+                                              MRI, TRI);
+  if (OpBank->getID() == AMDGPU::SGPRRegBankID)
+    return selectSimpleSALU(I);
+
+  return selectSimpleVALU(I);
+}
 
 bool AMDGPUInstructionSelector::select(MachineInstr &I) const {
 
@@ -665,6 +734,8 @@ bool AMDGPUInstructionSelector::select(MachineInstr &I) const {
   switch (I.getOpcode()) {
   default:
     break;
+  case TargetOpcode::G_OR:
+    return selectSimple(I);
   case TargetOpcode::G_ADD:
     return selectG_ADD(I);
   case TargetOpcode::G_BITCAST:
