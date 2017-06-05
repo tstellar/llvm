@@ -35,6 +35,30 @@ AMDGPUInstructionSelector::AMDGPUInstructionSelector(
     : InstructionSelector(), TII(*STI.getInstrInfo()),
       TRI(*STI.getRegisterInfo()), RBI(RBI), AMDGPUASI(STI.getAMDGPUAS()) {}
 
+bool AMDGPUInstructionSelector::selectCOPY(MachineInstr &I) const {
+  MachineBasicBlock *BB = I.getParent();
+  MachineFunction *MF = BB->getParent();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+  unsigned Size = RBI.getSizeInBits(I.getOperand(0).getReg(), MRI, TRI);
+  for (const MachineOperand &MO : I.operands()) {
+    if (TargetRegisterInfo::isPhysicalRegister(MO.getReg()))
+      continue;
+    const RegisterBank *OpBank = RBI.getRegBank(MO.getReg(), MRI, TRI);
+    if (!OpBank)
+      continue;
+
+    const TargetRegisterClass *RC;
+    if (OpBank->getID() == AMDGPU::SGPRRegBankID) {
+      RC = Size == 32 ? &AMDGPU::SGPR_32RegClass : &AMDGPU::SReg_64RegClass;
+    } else {
+      assert(OpBank->getID() == AMDGPU::VGPRRegBankID);
+      RC = Size == 32 ? &AMDGPU::VGPR_32RegClass : &AMDGPU::VReg_64RegClass;
+    }
+    RBI.constrainGenericRegister(MO.getReg(), *RC, MRI);
+  }
+  return true;
+}
+
 MachineOperand
 AMDGPUInstructionSelector::getSubOperand64(MachineOperand &MO,
                                            unsigned SubIdx) const {
@@ -402,10 +426,14 @@ bool AMDGPUInstructionSelector::selectG_LOAD(MachineInstr &I) const {
   return Ret;
 }
 
+
 bool AMDGPUInstructionSelector::select(MachineInstr &I) const {
 
-  if (!isPreISelGenericOpcode(I.getOpcode()))
+  if (!isPreISelGenericOpcode(I.getOpcode())) {
+    if (I.isCopy())
+      return selectCOPY(I);
     return true;
+  }
 
   switch (I.getOpcode()) {
   default:
