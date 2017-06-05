@@ -37,7 +37,7 @@ unsigned llvm::constrainOperandRegClass(
 
   const TargetRegisterClass *RegClass = TII.getRegClass(II, OpIdx, &TRI, MF);
 
-  if (!RBI.constrainGenericRegister(Reg, *RegClass, MRI)) {
+  if (RegClass->isAllocatable() && !RBI.constrainGenericRegister(Reg, *RegClass, MRI)) {
     unsigned NewReg = MRI.createVirtualRegister(RegClass);
     BuildMI(*InsertPt.getParent(), InsertPt, InsertPt.getDebugLoc(),
             TII.get(TargetOpcode::COPY), NewReg)
