@@ -216,15 +216,16 @@ bool AMDGPUInstructionSelector::selectG_ICMP(MachineInstr &I) const {
   assert(Size == 32);
   if (hasOnlySGPROperands(I, MRI)) {
     unsigned Opcode = getS_CMPOpcode((CmpInst::Predicate)I.getOperand(1).getPredicate(), Size);
+
+    // FIXME: We need a beter solution for handling condition codes.
     MachineInstr *ICmp = BuildMI(*BB, &I, DL, TII.get(Opcode))
             .add(I.getOperand(2))
             .add(I.getOperand(3));
-    MachineInstr *CSelect = BuildMI(*BB, &I, DL, TII.get(AMDGPU::S_CSELECT_B64))
-            .add(I.getOperand(0))
-            .addImm(-1)
-            .addImm(0);
-    bool Ret = constrainSelectedInstRegOperands(*ICmp, TII, TRI, RBI) |
-               constrainSelectedInstRegOperands(*CSelect, TII, TRI, RBI);
+
+    BuildMI(*BB, &I, DL, TII.get(AMDGPU::COPY), I.getOperand(0).getReg())
+            .addReg(AMDGPU::SCC);
+    MRI.setRegClass(I.getOperand(0).getReg(), &AMDGPU::SReg_32RegClass);
+    bool Ret = constrainSelectedInstRegOperands(*ICmp, TII, TRI, RBI);
     I.eraseFromParent();
     return Ret;
   }
@@ -327,7 +328,8 @@ bool AMDGPUInstructionSelector::hasOnlySGPROperands(const MachineInstr &I,
     if (!MO.isReg())
       continue;
     const RegisterBank *OpBank = RBI.getRegBank(MO.getReg(), MRI, TRI);
-    if (OpBank->getID() != AMDGPU::SGPRRegBankID)
+    if (OpBank->getID() != AMDGPU::SGPRRegBankID &&
+        OpBank->getID() != AMDGPU::SCCRegBankID)
       return false;
   }
   return true;
@@ -345,18 +347,16 @@ bool AMDGPUInstructionSelector::selectG_SELECT(MachineInstr &I) const {
   if (hasOnlySGPROperands(I, MRI)) {
     unsigned SelectOpcode = Size == 32 ? AMDGPU::S_CSELECT_B32 :
                                          AMDGPU::S_CSELECT_B64;
-    // FIXME: Not sure how best to handle SCC.  Since CondReg is signextend
-    // from i1 checking the low 32-bits should be fine.
-    MachineOperand CondRegLo(getSubOperand64(I.getOperand(1), AMDGPU::sub0));
-    MachineInstr *SetSCC = BuildMI(*BB, &I, DL, TII.get(AMDGPU::S_CMP_LG_U32))
-            .add(CondRegLo)
-            .addImm(0);
+    BuildMI(*BB, &I, DL, TII.get(AMDGPU::COPY), AMDGPU::SCC)
+            .addReg(I.getOperand(1).getReg());
+
     MachineInstr *Select = BuildMI(*BB, &I, DL, TII.get(SelectOpcode), DstReg)
             .add(I.getOperand(2))
             .add(I.getOperand(3));
 
-    bool Ret = constrainSelectedInstRegOperands(*Select, TII, TRI, RBI) |
-               constrainSelectedInstRegOperands(*SetSCC, TII, TRI, RBI);
+    MRI.setRegClass(I.getOperand(1).getReg(), &AMDGPU::SReg_32RegClass);
+    bool Ret = constrainSelectedInstRegOperands(*Select, TII, TRI, RBI);
+
     I.eraseFromParent();
     return Ret;
   }
@@ -412,6 +412,7 @@ bool AMDGPUInstructionSelector::selectG_CONSTANT(MachineInstr &I) const {
   if (Size == 32) {
     I.setDesc(TII.get(Opcode));
     I.getOperand(1).ChangeToImmediate(Imm.getSExtValue());
+    I.addImplicitDefUseOperands(*MF);
     return constrainSelectedInstRegOperands(I, TII, TRI, RBI);
   }
 
