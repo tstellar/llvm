@@ -451,7 +451,7 @@ RegBankSelect::MappingCost RegBankSelect::computeMapping(
 
     // This is an impossible to repair cost.
     if (RepairCost == UINT_MAX)
-      continue;
+      return MappingCost::ImpossibleCost();
 
     // Bias used for splitting: 5%.
     const uint64_t PercentageForBias = 5;
