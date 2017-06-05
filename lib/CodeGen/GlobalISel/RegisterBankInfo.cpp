@@ -122,7 +122,7 @@ const TargetRegisterClass *RegisterBankInfo::constrainGenericRegister(
 
   const RegisterBank *RB = RegClassOrBank.get<const RegisterBank *>();
   // Otherwise, all we can do is ensure the bank covers the class, and set it.
-  if (RB && !RB->covers(RC))
+  if ((RB && !RB->covers(RC)) || !RC.isAllocatable())
     return nullptr;
 
   // If nothing was set or the class is simply compatible, set it.
