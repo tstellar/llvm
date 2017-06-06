@@ -287,6 +287,23 @@ bool AMDGPUInstructionSelector::selectG_INTRINSIC_W_SIDE_EFFECTS(
     I.eraseFromParent();
     return Ret;
   }
+  case Intrinsic::amdgcn_exp_compr: {
+    int64_t Tgt = getConstant(MRI.getVRegDef(I.getOperand(1).getReg()));
+    int64_t Enabled = getConstant(MRI.getVRegDef(I.getOperand(2).getReg()));
+    unsigned Reg0 = I.getOperand(3).getReg();
+    unsigned Reg1 = I.getOperand(4).getReg();
+    unsigned Undef = MRI.createVirtualRegister(&AMDGPU::VGPR_32RegClass);
+    int64_t Done = getConstant(MRI.getVRegDef(I.getOperand(5).getReg()));
+    int64_t VM = getConstant(MRI.getVRegDef(I.getOperand(6).getReg()));
+
+    BuildMI(*BB, &I, DL, TII.get(AMDGPU::IMPLICIT_DEF), Undef);
+    MachineInstr *Exp = buildEXP(TII, &I, Tgt, Reg0, Reg1, Undef, Undef, VM,
+                                 true,  Enabled, Done);
+    bool Ret = constrainSelectedInstRegOperands(*Exp, TII, TRI, RBI);
+
+    I.eraseFromParent();
+    return Ret;
+  }
   }
   return false;
 }
