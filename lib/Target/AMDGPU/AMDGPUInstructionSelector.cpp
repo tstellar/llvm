@@ -241,6 +241,25 @@ bool AMDGPUInstructionSelector::selectG_ICMP(MachineInstr &I) const {
   return Ret;
 }
 
+
+static MachineInstr *
+buildEXP(const TargetInstrInfo &TII, MachineInstr *Insert, unsigned Tgt,
+         unsigned Reg0, unsigned Reg1, unsigned Reg2, unsigned Reg3,
+         unsigned VM, bool Compr, unsigned Enabled, bool Done) {
+  DebugLoc DL = Insert->getDebugLoc();
+  MachineBasicBlock &BB = *Insert->getParent();
+  unsigned Opcode = Done ? AMDGPU::EXP_DONE : AMDGPU::EXP;
+  return BuildMI(BB, Insert, DL, TII.get(Opcode))
+          .addImm(Tgt)
+          .addReg(Reg0)
+          .addReg(Reg1)
+          .addReg(Reg2)
+          .addReg(Reg3)
+          .addImm(VM)
+          .addImm(Compr)
+          .addImm(Enabled);
+}
+
 bool AMDGPUInstructionSelector::selectG_INTRINSIC_W_SIDE_EFFECTS(
                                                  MachineInstr &I) const {
   MachineBasicBlock *BB = I.getParent();
@@ -256,16 +275,11 @@ bool AMDGPUInstructionSelector::selectG_INTRINSIC_W_SIDE_EFFECTS(
     int64_t Done = getConstant(MRI.getVRegDef(I.getOperand(7).getReg()));
     int64_t VM = getConstant(MRI.getVRegDef(I.getOperand(8).getReg()));
    
-    unsigned Opcode = Done ? AMDGPU::EXP_DONE : AMDGPU::EXP; 
-    MachineInstr *Exp = BuildMI(*BB, &I,  DL, TII.get(Opcode))
-            .addImm(Tgt)
-            .add(I.getOperand(3))
-            .add(I.getOperand(4))
-            .add(I.getOperand(5))
-            .add(I.getOperand(6))
-            .addImm(VM)
-            .addImm(0) // Compr
-            .addImm(Enabled);
+    MachineInstr *Exp = buildEXP(TII, &I, Tgt, I.getOperand(3).getReg(),
+                                 I.getOperand(4).getReg(),
+                                 I.getOperand(5).getReg(),
+                                 I.getOperand(6).getReg(),
+                                 VM, false, Enabled, Done);
     
     // operands to use appropriate classes.
     bool Ret = constrainSelectedInstRegOperands(*Exp, TII, TRI, RBI);
