@@ -242,6 +242,16 @@ bool AMDGPUInstructionSelector::selectG_ICMP(MachineInstr &I) const {
   return Ret;
 }
 
+bool AMDGPUInstructionSelector::selectG_INTRINSIC(MachineInstr &I) const {
+  unsigned IntrinsicID =  I.getOperand(1).getIntrinsicID();
+
+  switch (IntrinsicID) {
+  default: break;
+  case Intrinsic::amdgcn_cvt_pkrtz:
+    return selectSimple(I);
+  } 
+  return false;
+}
 
 static MachineInstr *
 buildEXP(const TargetInstrInfo &TII, MachineInstr *Insert, unsigned Tgt,
@@ -691,6 +701,13 @@ unsigned AMDGPUInstructionSelector::getVALUOpcode(const MachineInstr &I) const {
   unsigned Size0 = RBI.getSizeInBits(I.getOperand(0).getReg(), MRI, TRI);
   switch (I.getOpcode()) {
   default: break;
+  case TargetOpcode::G_INTRINSIC:
+    switch (I.getOperand(1).getIntrinsicID()) {
+      default: break;
+      case Intrinsic::amdgcn_cvt_pkrtz:
+        return AMDGPU::V_CVT_PKRTZ_F16_F32_e64; 
+    }
+    break;
   case TargetOpcode::G_AND:
     if (Size0 == 32)
       return AMDGPU::V_AND_B32_e64;
@@ -728,9 +745,14 @@ bool AMDGPUInstructionSelector::selectSimpleVALU(MachineInstr &I) const {
     return false;
 
   const MCInstrDesc &Desc = TII.get(Opcode);
+  unsigned OpIdx = 0;
   MachineInstrBuilder VALU =
-      BuildMI(*BB, &I, DL, Desc, I.getOperand(0).getReg());
-  for (unsigned i = 1, OpIdx = 1, e = Desc.NumOperands; i != e; ++i) {
+      BuildMI(*BB, &I, DL, Desc, I.getOperand(OpIdx++).getReg());
+
+  if (I.getOperand(OpIdx).isIntrinsicID())
+    ++OpIdx;
+
+  for (unsigned i = 1, e = Desc.NumOperands; i != e; ++i) {
     if (Desc.OpInfo[i].RegClass != -1) {
       VALU.addReg(I.getOperand(OpIdx++).getReg());
       continue;
@@ -784,6 +806,8 @@ bool AMDGPUInstructionSelector::select(MachineInstr &I) const {
     return selectG_GEP(I);
   case TargetOpcode::G_ICMP:
     return selectG_ICMP(I);
+  case TargetOpcode::G_INTRINSIC:
+    return selectG_INTRINSIC(I);
   case TargetOpcode::G_INTRINSIC_W_SIDE_EFFECTS:
     return selectG_INTRINSIC_W_SIDE_EFFECTS(I);
   case TargetOpcode::G_LOAD:
