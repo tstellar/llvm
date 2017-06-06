@@ -390,6 +390,7 @@ AMDGPURegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
     switch(MI.getOperand(1).getIntrinsicID()) {
     default:
       return getInvalidInstructionMapping();
+    case Intrinsic::maxnum:
     case Intrinsic::amdgcn_cvt_pkrtz:
       return getDefaultMappingVOP(MI);
     }
