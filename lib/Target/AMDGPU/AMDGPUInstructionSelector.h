@@ -51,6 +51,7 @@ private:
   bool selectG_ADD(MachineInstr &I) const;
   bool selectG_GEP(MachineInstr &I) const;
   bool selectG_ICMP(MachineInstr &I) const;
+  bool selectG_INTRINSIC(MachineInstr &I) const;
   bool selectG_INTRINSIC_W_SIDE_EFFECTS(MachineInstr &I) const;
   bool hasVgprParts(ArrayRef<GEPInfo> AddrInfo) const;
   void getAddrModeInfo(const MachineInstr &Load, const MachineRegisterInfo &MRI,
