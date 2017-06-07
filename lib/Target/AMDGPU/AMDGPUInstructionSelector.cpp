@@ -247,6 +247,7 @@ bool AMDGPUInstructionSelector::selectG_INTRINSIC(MachineInstr &I) const {
 
   switch (IntrinsicID) {
   default: break;
+  case Intrinsic::maxnum:
   case Intrinsic::minnum:
   case Intrinsic::amdgcn_cvt_pkrtz:
     return selectSimple(I);
@@ -707,6 +708,8 @@ unsigned AMDGPUInstructionSelector::getVALUOpcode(const MachineInstr &I) const {
       default: break;
       case Intrinsic::amdgcn_cvt_pkrtz:
         return AMDGPU::V_CVT_PKRTZ_F16_F32_e64; 
+      case Intrinsic::maxnum:
+        return AMDGPU::V_MAX_F32_e64; 
       case Intrinsic::minnum:
         return AMDGPU::V_MIN_F32_e64; 
     }
