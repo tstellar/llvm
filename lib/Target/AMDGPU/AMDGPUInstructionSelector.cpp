@@ -695,6 +695,11 @@ unsigned AMDGPUInstructionSelector::getVALUOpcode(const MachineInstr &I) const {
     if (Size0 == 32)
       return AMDGPU::V_AND_B32_e64;
     break;
+  case TargetOpcode::G_FPTOUI:
+    if (Size0 == 32 &&
+        RBI.getSizeInBits(I.getOperand(1).getReg(), MRI, TRI) == 32)
+      return AMDGPU::V_CVT_U32_F32_e64;
+    break;
   case TargetOpcode::G_OR:
     if (Size0 == 32)
       return AMDGPU::V_OR_B32_e64;
@@ -720,7 +725,10 @@ bool AMDGPUInstructionSelector::selectSimpleVALU(MachineInstr &I) const {
   for (unsigned i = 1, OpIdx = 1, e = Desc.NumOperands; i != e; ++i) {
     if (Desc.OpInfo[i].RegClass != -1) {
       VALU.addReg(I.getOperand(OpIdx++).getReg());
+      continue;
     }
+    // Input / Output modifiers
+    VALU.addImm(0);
   }
   I.eraseFromParent();
   return constrainSelectedInstRegOperands(*VALU, TII, TRI, RBI);
@@ -751,6 +759,7 @@ bool AMDGPUInstructionSelector::select(MachineInstr &I) const {
   default:
     break;
   case TargetOpcode::G_AND:
+  case TargetOpcode::G_FPTOUI:
   case TargetOpcode::G_OR:
   case TargetOpcode::G_SHL:
     return selectSimple(I);
