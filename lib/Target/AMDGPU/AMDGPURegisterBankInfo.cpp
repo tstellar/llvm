@@ -312,6 +312,7 @@ AMDGPURegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
     // Fall-through
 
   case AMDGPU::G_FADD:
+  case AMDGPU::G_FPTOUI:
   case AMDGPU::G_FMUL:
     return getDefaultMappingVOP(MI);
 
