@@ -1,0 +1,31 @@
+# RUN: llc -march=amdgcn -mcpu=fiji -run-pass=instruction-select -verify-machineinstrs -global-isel %s -o - | FileCheck %s -check-prefixes=GCN
+
+--- |
+  define amdgpu_kernel void @fptosi(i32 addrspace(1)* %global0) {ret void}
+...
+---
+
+name:            fptosi
+legalized:       true
+regBankSelected: true
+
+# GCN-LABEL: name: fptosi
+body: |
+  bb.0:
+    liveins: %sgpr0, %vgpr0, %vgpr3_vgpr4
+    %0:sgpr(s32) = COPY %sgpr0
+    %1:vgpr(s32) = COPY %vgpr0
+    %2:vgpr(s64) = COPY %vgpr3_vgpr4
+
+    ; fptosi s
+    ; GCN: V_CVT_I32_F32_e64
+    %3:vgpr(s32) = G_FPTOSI %0
+
+    ; fptosi v
+    ; GCN: V_CVT_I32_F32_e64
+    %4:vgpr(s32) = G_FPTOSI %1
+
+    G_STORE %3, %2 :: (store 4 into %ir.global0)
+    G_STORE %4, %2 :: (store 4 into %ir.global0)
+...
+---
