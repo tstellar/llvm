@@ -1,0 +1,45 @@
+# RUN: llc -march=amdgcn -mcpu=fiji -run-pass=regbankselect -global-isel %s -verify-machineinstrs -o - -regbankselect-fast | FileCheck %s
+# RUN: llc -march=amdgcn -mcpu=fiji -run-pass=regbankselect -global-isel %s -verify-machineinstrs -o - -regbankselect-greedy | FileCheck %s
+
+# REQUIRES: global-isel
+
+--- |
+  define void @fptosi_s() { ret void }
+  define void @fptosi_v() { ret void }
+...
+
+---
+name: fptosi_s
+legalized: true
+
+# CHECK-LABEL: name: fptosi_s
+# CHECK: registers:
+# CHECK: - { id: 0, class: sgpr
+# CHECK: - { id: 1, class: vgpr
+# CHECK: [[SGPR0:%[0-9]+]](s32) = COPY %sgpr0
+# CHECK: %1(s32) = G_FPTOSI [[SGPR0]]
+
+body: |
+  bb.0:
+    liveins: %sgpr0
+    %0:_(s32) = COPY %sgpr0
+    %1:_(s32) = G_FPTOSI %0
+...
+
+---
+name: fptosi_v
+legalized: true
+
+# CHECK-LABEL: name: fptosi_v
+# CHECK: registers:
+# CHECK: - { id: 0, class: vgpr
+# CHECK: - { id: 1, class: vgpr
+# CHECK: [[VGPR0:%[0-9]+]](s32) = COPY %vgpr0
+# CHECK: %1(s32) = G_FPTOSI [[VGPR0]]
+
+body: |
+  bb.0:
+    liveins: %vgpr0
+    %0:_(s32) = COPY %vgpr0
+    %1:_(s32) = G_FPTOSI %0
+...
