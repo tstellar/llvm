@@ -1,0 +1,99 @@
+# RUN: llc -march=amdgcn -mcpu=fiji -run-pass=regbankselect -global-isel %s -verify-machineinstrs -o - -regbankselect-fast | FileCheck %s
+# RUN: llc -march=amdgcn -mcpu=fiji -run-pass=regbankselect -global-isel %s -verify-machineinstrs -o - -regbankselect-greedy | FileCheck %s
+
+# REQUIRES: global-isel
+
+--- |
+  define void @fcmp_ss() { ret void }
+  define void @fcmp_sv() { ret void }
+  define void @fcmp_vs() { ret void }
+  define void @fcmp_vv() { ret void }
+...
+
+---
+name: fcmp_ss
+legalized: true
+
+# CHECK-LABEL: name: fcmp_ss
+# CHECK: registers:
+# CHECK: - { id: 0, class: sgpr
+# CHECK: - { id: 1, class: sgpr
+# CHECK: - { id: 2, class: sgpr
+# CHECK: - { id: [[SRC1:[0-9]+]], class: vgpr
+# CHECK: [[SGPR0:%[0-9]+]](s32) = COPY %sgpr0
+# CHECK: [[SGPR1:%[0-9]+]](s32) = COPY %sgpr1 
+# CHECK: %[[SRC1]](s32) = COPY [[SGPR1]]
+# CHECK: %2(s1) = G_FCMP floatpred(uge), %0(s32), %[[SRC1]]
+
+body: |
+  bb.0:
+    liveins: %sgpr0, %sgpr1
+    %0:_(s32) = COPY %sgpr0
+    %1:_(s32) = COPY %sgpr1
+    %2:_(s1) = G_FCMP floatpred(uge), %0(s32), %1
+...
+
+---
+name: fcmp_sv
+legalized: true
+
+# CHECK-LABEL: name: fcmp_sv
+# CHECK: registers:
+# CHECK: - { id: 0, class: sgpr
+# CHECK: - { id: 1, class: vgpr
+# CHECK: - { id: 2, class: sgpr
+# CHECK: [[SGPR0:%[0-9]+]](s32) = COPY %sgpr0
+# CHECK: [[VGPR0:%[0-9]+]](s32) = COPY %vgpr0
+# CHECK: %2(s1) = G_FCMP floatpred(uge), [[SGPR0]](s32), [[VGPR0]]
+
+body: |
+  bb.0:
+    liveins: %sgpr0, %vgpr0
+    %0:_(s32) = COPY %sgpr0
+    %1:_(s32) = COPY %vgpr0
+    %2:_(s1) = G_FCMP floatpred(uge), %0, %1
+...
+
+---
+name: fcmp_vs
+legalized: true
+
+# CHECK-LABEL: name: fcmp_vs
+# CHECK: registers:
+# CHECK: - { id: 0, class: sgpr
+# CHECK: - { id: 1, class: vgpr
+# CHECK: - { id: 2, class: sgpr
+# CHECK: - { id: [[SRC1:[0-9]+]], class: vgpr
+# CHECK: [[SGPR0:%[0-9]+]](s32) = COPY %sgpr0
+# CHECK: [[VGPR0:%[0-9]+]](s32) = COPY %vgpr0
+# CHECK: %[[SRC1]](s32) = COPY [[SGPR0]]
+# CHECK: %2(s1) = G_FCMP floatpred(uge), [[VGPR0]](s32), %[[SRC1]]
+
+body: |
+  bb.0:
+    liveins: %sgpr0, %vgpr0
+    %0:_(s32) = COPY %sgpr0
+    %1:_(s32) = COPY %vgpr0
+    %2:_(s1) = G_FCMP floatpred(uge), %1, %0
+...
+
+---
+name: fcmp_vv
+legalized: true
+
+# CHECK-LABEL: name: fcmp_vv
+# CHECK: registers:
+# CHECK: - { id: 0, class: vgpr
+# CHECK: - { id: 1, class: vgpr
+# CHECK: - { id: 2, class: sgpr
+# CHECK: [[VGPR0:%[0-9]+]](s32) = COPY %vgpr0
+# CHECK: [[VGPR1:%[0-9]+]](s32) = COPY %vgpr1
+# CHECK: %2(s1) = G_ICMP floatpred(uge), [[VGPR0]](s32), [[VGPR1]]
+
+body: |
+  bb.0:
+    liveins: %vgpr0, %vgpr1
+    %0:_(s32) = COPY %vgpr0
+    %1:_(s32) = COPY %vgpr1
+    %2:_(s1) = G_ICMP floatpred(uge), %0, %1
+...
