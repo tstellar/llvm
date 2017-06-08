@@ -726,6 +726,11 @@ unsigned AMDGPUInstructionSelector::getVALUOpcode(const MachineInstr &I) const {
     if (Size0 == 32)
       return AMDGPU::V_MUL_F32_e64;
     break;
+  case TargetOpcode::G_FPTOSI:
+    if (Size0 == 32 &&
+        RBI.getSizeInBits(I.getOperand(1).getReg(), MRI, TRI) == 32)
+      return AMDGPU::V_CVT_I32_F32_e64;
+    break;
   case TargetOpcode::G_FPTOUI:
     if (Size0 == 32 &&
         RBI.getSizeInBits(I.getOperand(1).getReg(), MRI, TRI) == 32)
@@ -797,6 +802,7 @@ bool AMDGPUInstructionSelector::select(MachineInstr &I) const {
   case TargetOpcode::G_AND:
   case TargetOpcode::G_FADD:
   case TargetOpcode::G_FMUL:
+  case TargetOpcode::G_FPTOSI:
   case TargetOpcode::G_FPTOUI:
   case TargetOpcode::G_OR:
   case TargetOpcode::G_SHL:
