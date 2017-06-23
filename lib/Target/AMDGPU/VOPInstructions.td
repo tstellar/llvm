@@ -401,6 +401,10 @@ class VOP_SDWA_Real <VOP_SDWA_Pseudo ps> :
   let Constraints     = ps.Constraints;
   let DisableEncoding = ps.DisableEncoding;
 
+  // string Mnemonic     = ps.Mnemonic;
+  // string AsmOperands  = ps.AsmOperands;
+  // string AsmOperands9 = ps.AsmOperands9;
+
   // Copy relevant pseudo op flags
   let SubtargetPredicate   = ps.SubtargetPredicate;
   let AssemblerPredicate   = ps.AssemblerPredicate;

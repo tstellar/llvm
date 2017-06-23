@@ -238,36 +238,6 @@ def FeatureSDWA : SubtargetFeature<"sdwa",
   "Support SDWA (Sub-DWORD Addressing) extension"
 >;
 
-def FeatureSDWAOmod : SubtargetFeature<"sdwa-omod",
-  "HasSDWAOmod",
-  "true",
-  "Support OMod with SDWA (Sub-DWORD Addressing) extension"
->;
-
-def FeatureSDWAScalar : SubtargetFeature<"sdwa-scalar",
-  "HasSDWAScalar",
-  "true",
-  "Support scalar register with SDWA (Sub-DWORD Addressing) extension"
->;
-
-def FeatureSDWASdst : SubtargetFeature<"sdwa-sdst",
-  "HasSDWASdst",
-  "true",
-  "Support scalar dst for VOPC with SDWA (Sub-DWORD Addressing) extension"
->;
-
-def FeatureSDWAMac : SubtargetFeature<"sdwa-mav",
-  "HasSDWAMac",
-  "true",
-  "Support v_mac_f32/f16 with SDWA (Sub-DWORD Addressing) extension"
->;
-
-def FeatureSDWAClampVOPC : SubtargetFeature<"sdwa-clamp-vopc",
-  "HasSDWAClampVOPC",
-  "true",
-  "Support clamp for VOPC with SDWA (Sub-DWORD Addressing) extension"
->;
-
 def FeatureDPP : SubtargetFeature<"dpp",
   "HasDPP",
   "true",
@@ -451,8 +421,8 @@ def FeatureVolcanicIslands : SubtargetFeatureGeneration<"VOLCANIC_ISLANDS",
    FeatureWavefrontSize64, FeatureFlatAddressSpace, FeatureGCN,
    FeatureGCN3Encoding, FeatureCIInsts, Feature16BitInsts,
    FeatureSMemRealTime, FeatureVGPRIndexMode, FeatureMovrel,
-   FeatureScalarStores, FeatureInv2PiInlineImm,
-   FeatureSDWA, FeatureSDWAClampVOPC, FeatureSDWAMac, FeatureDPP
+   FeatureScalarStores, FeatureInv2PiInlineImm, FeatureSDWA,
+   FeatureDPP
   ]
 >;
 
@@ -462,8 +432,7 @@ def FeatureGFX9 : SubtargetFeatureGeneration<"GFX9",
    FeatureGCN3Encoding, FeatureCIInsts, Feature16BitInsts,
    FeatureSMemRealTime, FeatureScalarStores, FeatureInv2PiInlineImm,
    FeatureApertureRegs, FeatureGFX9Insts, FeatureVOP3P, FeatureVGPRIndexMode,
-   FeatureFastFMAF32, FeatureDPP,
-   FeatureSDWA, FeatureSDWAOmod, FeatureSDWAScalar, FeatureSDWASdst,
+   FeatureFastFMAF32, FeatureSDWA, FeatureDPP,
    FeatureFlatInstOffsets, FeatureFlatGlobalInsts, FeatureFlatScratchInsts
   ]
 >;

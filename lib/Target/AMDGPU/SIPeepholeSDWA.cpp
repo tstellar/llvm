@@ -67,9 +67,9 @@ public:
 
   bool runOnMachineFunction(MachineFunction &MF) override;
   void matchSDWAOperands(MachineFunction &MF);
-  bool isConvertibleToSDWA(const MachineInstr &MI, const SISubtarget &ST) const;
+  bool isConvertibleToSDWA(const MachineInstr &MI) const;
   bool convertToSDWA(MachineInstr &MI, const SDWAOperandsVector &SDWAOperands);
-  void legalizeScalarOperands(MachineInstr &MI, const SISubtarget &ST) const;
+  void legalizeScalarOperands(MachineInstr &MI) const;
 
   StringRef getPassName() const override { return "SI Peephole SDWA"; }
 
@@ -607,38 +607,24 @@ void SIPeepholeSDWA::matchSDWAOperands(MachineFunction &MF) {
   }
 }
 
-bool SIPeepholeSDWA::isConvertibleToSDWA(const MachineInstr &MI,
-                                         const SISubtarget &ST) const {
+bool SIPeepholeSDWA::isConvertibleToSDWA(const MachineInstr &MI) const {
   // Check if this instruction has opcode that supports SDWA
-  int Opc = MI.getOpcode();
-  if (AMDGPU::getSDWAOp(Opc) == -1)
-    Opc = AMDGPU::getVOPe32(Opc);
-
-  if (Opc == -1 || AMDGPU::getSDWAOp(Opc) == -1)
-    return false;
-
-  if (!ST.hasSDWAOmod() && TII->hasModifiersSet(MI, AMDGPU::OpName::omod))
-    return false;
-
-  if (TII->isVOPC(Opc)) {
-    if (!ST.hasSDWASdst()) {
-      const MachineOperand *SDst = TII->getNamedOperand(MI, AMDGPU::OpName::sdst);
-      if (SDst && SDst->getReg() != AMDGPU::VCC)
-        return false;
-    }
-
-    if (!ST.hasSDWAClampVOPC() && TII->hasModifiersSet(MI, AMDGPU::OpName::clamp))
+  unsigned Opc = MI.getOpcode();
+  if (AMDGPU::getSDWAOp(Opc) != -1)
+    return true;
+  int Opc32 = AMDGPU::getVOPe32(Opc);
+  if (Opc32 != -1 && AMDGPU::getSDWAOp(Opc32) != -1) {
+    if (TII->hasModifiersSet(MI, AMDGPU::OpName::omod))
       return false;
 
-  } else if (TII->getNamedOperand(MI, AMDGPU::OpName::sdst)) {
-    return false;
+    if (TII->isVOPC(Opc)) {
+      const MachineOperand *SDst = TII->getNamedOperand(MI, AMDGPU::OpName::sdst);
+      return SDst && SDst->getReg() == AMDGPU::VCC;
+    } else {
+      return !TII->getNamedOperand(MI, AMDGPU::OpName::sdst);
+    }
   }
-
-  if (!ST.hasSDWAMac() && (Opc == AMDGPU::V_MAC_F16_e32 ||
-                           Opc == AMDGPU::V_MAC_F32_e32))
-    return false;
-
-  return true;
+  return false;
 }
 
 bool SIPeepholeSDWA::convertToSDWA(MachineInstr &MI,
@@ -704,23 +690,13 @@ bool SIPeepholeSDWA::convertToSDWA(MachineInstr &MI,
     SDWAInst.add(*Src2);
   }
 
-  // Copy clamp if present, initialize otherwise
-  assert(AMDGPU::getNamedOperandIdx(SDWAOpcode, AMDGPU::OpName::clamp) != -1);
-  MachineOperand *Clamp = TII->getNamedOperand(MI, AMDGPU::OpName::clamp);
-  if (Clamp) {
-    SDWAInst.add(*Clamp);
-  } else {
+  // Initialize clamp.
+  if (AMDGPU::getNamedOperandIdx(SDWAOpcode, AMDGPU::OpName::clamp) != -1)
     SDWAInst.addImm(0);
-  }
 
-  // Copy omod if present, initialize otherwise if needed
-  MachineOperand *OMod = TII->getNamedOperand(MI, AMDGPU::OpName::omod);
-  if (OMod) {
-    assert(AMDGPU::getNamedOperandIdx(SDWAOpcode, AMDGPU::OpName::omod) != -1);
-    SDWAInst.add(*OMod);
-  } else if (AMDGPU::getNamedOperandIdx(SDWAOpcode, AMDGPU::OpName::omod) != -1) {
+  // Initialize omod.
+  if (AMDGPU::getNamedOperandIdx(SDWAOpcode, AMDGPU::OpName::omod) != -1)
     SDWAInst.addImm(0);
-  }
 
   // Initialize dst_sel and dst_unused if present
   if (Dst) {
@@ -774,25 +750,16 @@ bool SIPeepholeSDWA::convertToSDWA(MachineInstr &MI,
 }
 
 // If an instruction was converted to SDWA it should not have immediates or SGPR
-// operands (allowed one SGPR on GFX9). Copy its scalar operands into VGPRs.
-void SIPeepholeSDWA::legalizeScalarOperands(MachineInstr &MI, const SISubtarget &ST) const {
+// operands. Copy its scalar operands into VGPRs.
+void SIPeepholeSDWA::legalizeScalarOperands(MachineInstr &MI) const {
   const MCInstrDesc &Desc = TII->get(MI.getOpcode());
-  unsigned ConstantBusCount = 0;
-  for (MachineOperand &Op: MI.explicit_uses()) {
+  for (unsigned I = 0, E = MI.getNumExplicitOperands(); I != E; ++I) {
+    MachineOperand &Op = MI.getOperand(I);
     if (!Op.isImm() && !(Op.isReg() && !TRI->isVGPR(*MRI, Op.getReg())))
       continue;
-
-    unsigned I = MI.getOperandNo(&Op);
     if (Desc.OpInfo[I].RegClass == -1 ||
        !TRI->hasVGPRs(TRI->getRegClass(Desc.OpInfo[I].RegClass)))
       continue;
-
-    if (ST.hasSDWAScalar() && ConstantBusCount == 0 && Op.isReg() &&
-        TRI->isSGPRReg(*MRI, Op.getReg())) {
-      ++ConstantBusCount;
-      continue;
-    }
-
     unsigned VGPR = MRI->createVirtualRegister(&AMDGPU::VGPR_32RegClass);
     auto Copy = BuildMI(*MI.getParent(), MI.getIterator(), MI.getDebugLoc(),
                         TII->get(AMDGPU::V_MOV_B32_e32), VGPR);
@@ -808,8 +775,10 @@ void SIPeepholeSDWA::legalizeScalarOperands(MachineInstr &MI, const SISubtarget 
 bool SIPeepholeSDWA::runOnMachineFunction(MachineFunction &MF) {
   const SISubtarget &ST = MF.getSubtarget<SISubtarget>();
 
-  if (!ST.hasSDWA())
+  if (!ST.hasSDWA() ||
+      !AMDGPU::isVI(ST)) { // TODO: Add support for SDWA on gfx9
     return false;
+  }
 
   MRI = &MF.getRegInfo();
   TRI = ST.getRegisterInfo();
@@ -821,7 +790,7 @@ bool SIPeepholeSDWA::runOnMachineFunction(MachineFunction &MF) {
   for (const auto &OperandPair : SDWAOperands) {
     const auto &Operand = OperandPair.second;
     MachineInstr *PotentialMI = Operand->potentialToConvert(TII);
-    if (PotentialMI && isConvertibleToSDWA(*PotentialMI, ST)) {
+    if (PotentialMI && isConvertibleToSDWA(*PotentialMI)) {
       PotentialMatches[PotentialMI].push_back(Operand.get());
     }
   }
@@ -836,7 +805,7 @@ bool SIPeepholeSDWA::runOnMachineFunction(MachineFunction &MF) {
 
   bool Ret = !ConvertedInstructions.empty();
   while (!ConvertedInstructions.empty())
-    legalizeScalarOperands(*ConvertedInstructions.pop_back_val(), ST);
+    legalizeScalarOperands(*ConvertedInstructions.pop_back_val());
 
   return Ret;
 }
