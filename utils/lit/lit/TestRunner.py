@@ -762,13 +762,16 @@ def applySubstitutions(script, substitutions):
         for a,b in substitutions:
             if kIsWindows:
                 b = b.replace("\\","\\\\")
+            print('a = ', a, 'b=', b)
             ln = re.sub(a, b, ln)
 
         # Strip the trailing newline and any extra whitespace.
         return ln.strip()
     # Note Python 3 map() gives an iterator rather than a list so explicitly
     # convert to list before returning.
-    return list(map(processLine, script))
+    a = list(map(processLine, script))
+    print(a)
+    return a
 
 
 class ParserKind(object):

@@ -444,7 +444,8 @@ const SISubtarget *GCNTargetMachine::getSubtargetImpl(const Function &F) const {
       new AMDGPUCallLowering(*I->getTargetLowering()));
     GISel->Legalizer.reset(new AMDGPULegalizerInfo());
 
-    GISel->RegBankInfo.reset(new AMDGPURegisterBankInfo(*I->getRegisterInfo()));
+    GISel->RegBankInfo.reset(new AMDGPURegisterBankInfo(*I->getRegisterInfo(),
+			                                *I->getInstrInfo()));
     GISel->InstSelector.reset(new AMDGPUInstructionSelector(*I,
 				*static_cast<AMDGPURegisterBankInfo*>(GISel->RegBankInfo.get())));
 #endif

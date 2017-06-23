@@ -22,6 +22,8 @@
 
 namespace llvm {
 
+class MCInstrDesc;
+class SIInstrInfo;
 class SIRegisterInfo;
 class TargetRegisterInfo;
 
@@ -35,6 +37,7 @@ protected:
 };
 class AMDGPURegisterBankInfo : public AMDGPUGenRegisterBankInfo {
   const SIRegisterInfo *TRI;
+  const SIInstrInfo *TII;
 
   /// See RegisterBankInfo::applyMapping.
   void applyMappingImpl(const OperandsMapper &OpdMapper) const override;
@@ -49,8 +52,11 @@ class AMDGPURegisterBankInfo : public AMDGPUGenRegisterBankInfo {
   bool isSALUMapping(const MachineInstr &MI) const;
   const InstructionMapping &getDefaultMappingSOP(const MachineInstr &MI) const;
   const InstructionMapping &getDefaultMappingVOP(const MachineInstr &MI) const;
+  const RegisterBankInfo::InstructionMapping &getDefaultMappingFromDesc(
+      const MachineInstr &MI, const MCInstrDesc &Desc) const;
 public:
-  AMDGPURegisterBankInfo(const TargetRegisterInfo &TRI);
+  AMDGPURegisterBankInfo(const TargetRegisterInfo &TRI,
+                         const TargetInstrInfo &TII);
 
   unsigned copyCost(const RegisterBank &A, const RegisterBank &B,
                     unsigned Size) const override;

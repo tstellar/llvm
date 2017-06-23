@@ -31,7 +31,7 @@ unsigned llvm::constrainRegToClass(MachineRegisterInfo &MRI,
                                    const RegisterBankInfo &RBI,
                                    MachineInstr &InsertPt, unsigned Reg,
                                    const TargetRegisterClass &RegClass) {
-  if (!RBI.constrainGenericRegister(Reg, RegClass, MRI)) {
+  if (RegClass.isAllocatable() && !RBI.constrainGenericRegister(Reg, RegClass, MRI)) {
     unsigned NewReg = MRI.createVirtualRegister(&RegClass);
     BuildMI(*InsertPt.getParent(), InsertPt, InsertPt.getDebugLoc(),
             TII.get(TargetOpcode::COPY), NewReg)
