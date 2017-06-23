@@ -46,11 +46,16 @@ private:
   };
 
   MachineOperand getSubOperand64(MachineOperand &MO, unsigned SubIdx) const;
+  bool constrainGenericOpReg(MachineRegisterInfo &MRI, unsigned Reg) const;
   bool selectCOPY(MachineInstr &I) const;
   bool selectG_CONSTANT(MachineInstr &I) const;
   bool selectG_ADD(MachineInstr &I) const;
+  bool selectG_EXTRACT_VECTOR_ELT(MachineInstr &I) const;
   bool selectG_GEP(MachineInstr &I) const;
   bool selectG_ICMP(MachineInstr &I) const;
+  bool selectG_INSERT_VECTOR_ELT(MachineInstr &I) const;
+  bool selectMIMG(MachineInstr &I) const;
+  bool selectMUBUF(MachineInstr &I) const;
   bool selectG_INTRINSIC(MachineInstr &I) const;
   bool selectG_INTRINSIC_W_SIDE_EFFECTS(MachineInstr &I) const;
   bool hasVgprParts(ArrayRef<GEPInfo> AddrInfo) const;
@@ -59,6 +64,7 @@ private:
   bool selectSMRD(MachineInstr &I, ArrayRef<GEPInfo> AddrInfo) const;
   bool selectG_LOAD(MachineInstr &I) const;
   bool hasOnlySGPROperands(const MachineInstr &I, const MachineRegisterInfo &MRI) const;
+  bool selectG_MERGE_VALUES(MachineInstr &I) const;
   bool selectG_SELECT(MachineInstr &I) const;
   bool selectG_STORE(MachineInstr &I) const;
   unsigned getSALUOpcode(const MachineInstr &I) const;
