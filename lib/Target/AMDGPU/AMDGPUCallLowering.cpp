@@ -85,6 +85,20 @@ void AMDGPUCallLowering::lowerParameter(MachineIRBuilder &MIRBuilder,
   MIRBuilder.buildLoad(DstReg, PtrReg, *MMO);
 }
 
+static bool allocateVec3(unsigned ValNo, CCValAssign::LocInfo LocInfo,
+                         ISD::ArgFlagsTy ArgFlags, CCState &State) {
+
+  ArrayRef<MCPhysReg> RegList = makeArrayRef(AMDGPU::VReg_96RegClass.begin(),
+                                             29);
+  unsigned RegResult = State.AllocateReg(RegList);
+  if (RegResult == AMDGPU::NoRegister)
+    return true;
+
+  State.addLoc(CCValAssign::getReg(ValNo, MVT::v4i32, RegResult, MVT::v4i32,
+                                   LocInfo));
+  return false;
+}	
+
 bool AMDGPUCallLowering::lowerFormalArguments(MachineIRBuilder &MIRBuilder,
                                               const Function &F,
                                               ArrayRef<unsigned> VRegs) const {
@@ -146,6 +160,7 @@ bool AMDGPUCallLowering::lowerFormalArguments(MachineIRBuilder &MIRBuilder,
   unsigned PSInputNum = 0;
   BitVector Skipped(NumArgs);
   for (unsigned i = 0; i != NumArgs; ++i, ++CurOrigArg) {
+   
     EVT ValEVT = TLI.getValueType(DL, CurOrigArg->getType());
 
     // We can only hanlde simple value types at the moment.
@@ -173,39 +188,31 @@ bool AMDGPUCallLowering::lowerFormalArguments(MachineIRBuilder &MIRBuilder,
     CCAssignFn *AssignFn = CCAssignFnForCall(F.getCallingConv(),
                                              /*IsVarArg=*/false);
 
-    if (ValEVT.isVector()) {
-      EVT ElemVT = ValEVT.getVectorElementType();
-      if (!ValEVT.isSimple())
-        return false;
-      MVT ValVT = ElemVT.getSimpleVT();
-      bool Res = AssignFn(i, ValVT, ValVT, CCValAssign::Full,
-                          OrigArg.Flags, CCInfo);
-      if (!Res)
-        return false;
+    bool Res = true;
+    if (!ValEVT.isSimple()) {
+      if (ValEVT.isVector() && ValEVT.getVectorNumElements() == 3)
+        Res = allocateVec3(i, CCValAssign::Full, OrigArg.Flags, CCInfo);
     } else {
       MVT ValVT = ValEVT.getSimpleVT();
-      if (!ValEVT.isSimple())
-        return false;
-      bool Res =
-          AssignFn(i, ValVT, ValVT, CCValAssign::Full, OrigArg.Flags, CCInfo);
+      Res = AssignFn(i, ValVT, ValVT, CCValAssign::Full, OrigArg.Flags, CCInfo);
 
-      // Fail if we don't know how to handle this type.
-      if (Res)
-        return false;
     }
+    // Fail if we don't know how to handle this type.
+    if (Res)
+      return false;
   }
 
   Function::const_arg_iterator Arg = F.arg_begin();
 
   if (F.getCallingConv() == CallingConv::AMDGPU_VS ||
-      F.getCallingConv() == CallingConv::AMDGPU_PS) {
+      F.getCallingConv() == CallingConv::AMDGPU_PS ||
+      F.getCallingConv() == CallingConv::AMDGPU_CS) {
     for (unsigned i = 0; i != ArgLocs.size(); ++i, ++Arg) {
-       if (Skipped.test(i))
-          continue;
       CCValAssign &VA = ArgLocs[i];
-      MRI.addLiveIn(VA.getLocReg(), VRegs[i]);
+      unsigned Reg = VRegs[VA.getValNo()];
+      MRI.addLiveIn(VA.getLocReg(), Reg);
       MIRBuilder.getMBB().addLiveIn(VA.getLocReg());
-      MIRBuilder.buildCopy(VRegs[i], VA.getLocReg());
+      MIRBuilder.buildCopy(Reg, VA.getLocReg());
     }
     return true; 
   }

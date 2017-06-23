@@ -361,7 +361,8 @@ SISubtarget::SISubtarget(const Triple &TT, StringRef GPU, StringRef FS,
   GISel->CallLoweringInfo.reset(new AMDGPUCallLowering(*getTargetLowering()));
   GISel->Legalizer.reset(new AMDGPULegalizerInfo());
 
-  GISel->RegBankInfo.reset(new AMDGPURegisterBankInfo(*getRegisterInfo()));
+  GISel->RegBankInfo.reset(new AMDGPURegisterBankInfo(*getRegisterInfo(),
+			                              *getInstrInfo()));
   GISel->InstSelector.reset(new AMDGPUInstructionSelector(
       *this, *static_cast<AMDGPURegisterBankInfo *>(GISel->RegBankInfo.get())));
 #endif

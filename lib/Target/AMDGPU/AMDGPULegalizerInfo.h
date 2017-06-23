@@ -25,6 +25,12 @@ class LLVMContext;
 class AMDGPULegalizerInfo : public LegalizerInfo {
 public:
   AMDGPULegalizerInfo();
+
+  bool legalizeCustom(MachineInstr &MI, MachineRegisterInfo &MRI,
+                      MachineIRBuilder &MIRBuilder) const override;
+private:
+  bool legalizeG_MERGE_VALUES(MachineInstr &MI, MachineRegisterInfo &MRI,
+                              MachineIRBuilder &MIRBuilder) const;
 };
 } // End llvm namespace.
 #endif

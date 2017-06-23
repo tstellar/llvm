@@ -1092,7 +1092,7 @@ void MIPrinter::print(const MachineMemOperand &Op) {
           OS, cast<ExternalSymbolPseudoSourceValue>(PVal)->getSymbol());
       break;
     case PseudoSourceValue::TargetCustom:
-      llvm_unreachable("TargetCustom pseudo source values are not supported");
+      //llvm_unreachable("TargetCustom pseudo source values are not supported");
       break;
     }
   }

@@ -36,7 +36,12 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo() {
 
   const LLT S1= LLT::scalar(1);
   const LLT V2S16 = LLT::vector(2, 16);
+  const LLT S16 = LLT::scalar(16);
   const LLT S32 = LLT::scalar(32);
+  const LLT V2S32 = LLT::vector(2, 32);
+  const LLT V3S32 = LLT::vector(3, 32);
+  const LLT V4S32 = LLT::vector(4, 32);
+  const LLT V8S32 = LLT::vector(8, 32);
   const LLT S64 = LLT::scalar(64);
   const LLT P1 = LLT::pointer(1, 64);
   const LLT P2 = LLT::pointer(2, 64);
@@ -54,8 +59,15 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo() {
   // values may not be legal.  We need to figure out how to distinguish
   // between these two scenarios.
   setAction({G_CONSTANT, S1}, Legal);
+  setAction({G_CONSTANT, S16}, Legal);
   setAction({G_CONSTANT, S32}, Legal);
   setAction({G_CONSTANT, S64}, Legal);
+
+  setAction({G_EXTRACT_VECTOR_ELT, S32}, Legal);
+  setAction({G_EXTRACT_VECTOR_ELT, 1, V4S32}, Legal);
+  setAction({G_EXTRACT_VECTOR_ELT, 1, V3S32}, Legal);
+  setAction({G_EXTRACT_VECTOR_ELT, 1, V2S32}, Legal);
+  setAction({G_EXTRACT_VECTOR_ELT, 2, S32}, Legal);
 
   setAction({G_FCONSTANT, S32}, Legal);
 
@@ -86,11 +98,26 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo() {
   setAction({G_ICMP, S1}, Legal);
   setAction({G_ICMP, 1, S32}, Legal);
 
+  setAction({G_INSERT_VECTOR_ELT, V2S32}, Legal);
+  setAction({G_INSERT_VECTOR_ELT, 1, V4S32}, Legal);
+  setAction({G_INSERT_VECTOR_ELT, V4S32}, Legal);
+  setAction({G_INSERT_VECTOR_ELT, 1, V2S32}, Legal);
+  setAction({G_INSERT_VECTOR_ELT, 1, S32}, Legal);
+  setAction({G_INSERT_VECTOR_ELT, 2, S32}, Legal);
+  setAction({G_INSERT_VECTOR_ELT, 3, S32}, Legal);
+
   setAction({G_LOAD, P1}, Legal);
   setAction({G_LOAD, P2}, Legal);
   setAction({G_LOAD, S32}, Legal);
+  setAction({G_LOAD, V4S32}, Legal);
+  setAction({G_LOAD, V8S32}, Legal);
   setAction({G_LOAD, 1, P1}, Legal);
   setAction({G_LOAD, 1, P2}, Legal);
+
+  setAction({G_MERGE_VALUES, S32}, Custom);
+  setAction({G_MERGE_VALUES, 1, S16}, Custom);
+
+  setAction({G_MUL, S32}, Legal);
 
   setAction({G_OR, S32}, Legal);
 
@@ -113,4 +140,51 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo() {
   setAction({G_STORE, 1, S64}, Legal);
 
   computeTables();
+}
+
+bool AMDGPULegalizerInfo::legalizeG_MERGE_VALUES(MachineInstr &MI,
+                                           MachineRegisterInfo &MRI,
+                                           MachineIRBuilder &MIRBuilder) const {
+  unsigned DstReg = MI.getOperand(0).getReg();
+  unsigned Src0 = MI.getOperand(1).getReg();
+  unsigned Src1 = MI.getOperand(2).getReg();
+
+  LLT DstTy = MRI.getType(DstReg);
+  LLT SrcTy = MRI.getType(Src0);
+
+  if (!DstTy.isScalar() || DstTy.getSizeInBits() != 32)
+    return false;
+
+  if (SrcTy != DstTy.halfScalarSize())
+    return false;
+
+  MIRBuilder.setInstr(MI);
+
+  unsigned Src0Ext = MRI.createGenericVirtualRegister(DstTy);
+  unsigned Src1Ext = MRI.createGenericVirtualRegister(DstTy);
+  unsigned Src1Shl = MRI.createGenericVirtualRegister(DstTy);
+  unsigned C16 = MRI.createGenericVirtualRegister(DstTy);
+  MIRBuilder.buildZExt(Src0Ext, Src0);
+  MIRBuilder.buildZExt(Src1Ext, Src1);
+  MIRBuilder.buildConstant(C16, SrcTy.getSizeInBits());
+  MIRBuilder.buildInstr(TargetOpcode::G_SHL).addDef(Src1Shl)
+                                            .addReg(Src1Ext)
+                                            .addReg(C16);
+  MIRBuilder.buildInstr(TargetOpcode::G_OR).addDef(DstReg)
+                                            .addReg(Src0Ext)
+                                            .addReg(Src1Shl);
+  MI.eraseFromParent();
+  return true;
+}
+
+bool AMDGPULegalizerInfo::legalizeCustom(MachineInstr &MI,
+                                         MachineRegisterInfo &MRI,
+                                         MachineIRBuilder &MIRBuilder) const {
+  switch (MI.getOpcode()) {
+  default:
+    return false;
+  case TargetOpcode::G_MERGE_VALUES:
+    return legalizeG_MERGE_VALUES(MI, MRI, MIRBuilder);
+  }
+
 }
