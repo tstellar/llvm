@@ -454,15 +454,20 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
   SmallVector<unsigned, 2> ImplicitDefs;
   for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end(); I != E; ) {
     MachineInstr *MI = &*I;
+    dbgs() << "MI = " << *MI << '\n';
     ++I;
 
+    dbgs() << "0\n";
     if (!isCSECandidate(MI))
       continue;
 
+    dbgs() << "1\n";
     bool FoundCSE = VNT.count(MI);
     if (!FoundCSE) {
+    dbgs() << "2\n";
       // Using trivial copy propagation to find more CSE opportunities.
       if (PerformTrivialCopyPropagation(MI, MBB)) {
+    dbgs() << "3\n";
         Changed = true;
 
         // After coalescing MI itself may become a copy.
@@ -473,14 +478,18 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
         FoundCSE = VNT.count(MI);
       }
     }
+    dbgs() << "4\n";
 
     // Commute commutable instructions.
     bool Commuted = false;
     if (!FoundCSE && MI->isCommutable()) {
+    dbgs() << "5\n";
       if (MachineInstr *NewMI = TII->commuteInstruction(*MI)) {
+    dbgs() << "6\n";
         Commuted = true;
         FoundCSE = VNT.count(NewMI);
         if (NewMI != MI) {
+    dbgs() << "7\n";
           // New instruction. It doesn't need to be kept.
           NewMI->eraseFromParent();
           Changed = true;
@@ -490,6 +499,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
       }
     }
 
+    dbgs() << "8\n";
     // If the instruction defines physical registers and the values *may* be
     // used, then it's not safe to replace it with a common subexpression.
     // It's also not safe if the instruction uses physical registers.
@@ -499,6 +509,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
     bool PhysUseDef = false;
     if (FoundCSE && hasLivePhysRegDefUses(MI, MBB, PhysRefs,
                                           PhysDefs, PhysUseDef)) {
+    dbgs() << "9\n";
       FoundCSE = false;
 
       // ... Unless the CS is local or is in the sole predecessor block
@@ -507,6 +518,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
       // This can never be the case if the instruction both uses and
       // defines the same physical register, which was detected above.
       if (!PhysUseDef) {
+    dbgs() << "10\n";
         unsigned CSVN = VNT.lookup(MI);
         MachineInstr *CSMI = Exps[CSVN];
         if (PhysRegDefsReach(CSMI, MI, PhysRefs, PhysDefs, CrossMBBPhysDef))
@@ -514,6 +526,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
       }
     }
 
+    dbgs() << "11\n";
     if (!FoundCSE) {
       VNT.insert(MI, CurrVN++);
       Exps.push_back(MI);
@@ -526,18 +539,22 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
     DEBUG(dbgs() << "Examining: " << *MI);
     DEBUG(dbgs() << "*** Found a common subexpression: " << *CSMI);
 
+    dbgs() << "A\n";
     // Check if it's profitable to perform this CSE.
     bool DoCSE = true;
     unsigned NumDefs = MI->getDesc().getNumDefs() +
                        MI->getDesc().getNumImplicitDefs();
+    dbgs() << "B\n";
 
     for (unsigned i = 0, e = MI->getNumOperands(); NumDefs && i != e; ++i) {
+    dbgs() << "i = " << i << "\n";
       MachineOperand &MO = MI->getOperand(i);
       if (!MO.isReg() || !MO.isDef())
         continue;
       unsigned OldReg = MO.getReg();
       unsigned NewReg = CSMI->getOperand(i).getReg();
 
+    dbgs() << "C\n";
       // Go through implicit defs of CSMI and MI, if a def is not dead at MI,
       // we should make sure it is not dead at CSMI.
       if (MO.isImplicit() && !MO.isDead() && CSMI->getOperand(i).isDead())
@@ -553,6 +570,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
         continue;
       }
 
+    dbgs() << "D\n";
       assert(TargetRegisterInfo::isVirtualRegister(OldReg) &&
              TargetRegisterInfo::isVirtualRegister(NewReg) &&
              "Do not CSE physical register defs!");
@@ -563,6 +581,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
         break;
       }
 
+    dbgs() << "E\n";
       // Don't perform CSE if the result of the old instruction cannot exist
       // within the register class of the new instruction.
       const TargetRegisterClass *OldRC = MRI->getRegClass(OldReg);
@@ -578,7 +597,9 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
 
     // Actually perform the elimination.
     if (DoCSE) {
+    dbgs() << "F\n";
       for (std::pair<unsigned, unsigned> &CSEPair : CSEPairs) {
+    dbgs() << "G\n";
         unsigned OldReg = CSEPair.first;
         unsigned NewReg = CSEPair.second;
         // OldReg may have been unused but is used now, clear the Dead flag
@@ -590,11 +611,14 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
         MRI->clearKillFlags(NewReg);
       }
 
+    dbgs() << "H\n";
       // Go through implicit defs of CSMI and MI, if a def is not dead at MI,
       // we should make sure it is not dead at CSMI.
       for (unsigned ImplicitDefToUpdate : ImplicitDefsToUpdate)
         CSMI->getOperand(ImplicitDefToUpdate).setIsDead(false);
 
+    dbgs() << "I\n";
+      // Go through implicit defs of CSMI and MI, if a def is not dead at MI,
       // Go through implicit defs of CSMI and MI, and clear the kill flags on
       // their uses in all the instructions between CSMI and MI.
       // We might have made some of the kill flags redundant, consider:
@@ -617,8 +641,10 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
         for (auto ImplicitDef : ImplicitDefs)
           MRI->clearKillFlags(ImplicitDef);
       }
+    dbgs() << "J\n";
 
       if (CrossMBBPhysDef) {
+    dbgs() << "K\n";
         // Add physical register defs now coming in from a predecessor to MBB
         // livein list.
         while (!PhysDefs.empty()) {
@@ -629,22 +655,32 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
         ++NumCrossBBCSEs;
       }
 
+    dbgs() << "L\n";
       MI->eraseFromParent();
+    dbgs() << "L.0\n";
       ++NumCSEs;
+    dbgs() << "L.1\n";
       if (!PhysRefs.empty())
         ++NumPhysCSEs;
+    dbgs() << "L.2\n";
       if (Commuted)
         ++NumCommutes;
+    dbgs() << "L.3\n";
       Changed = true;
     } else {
       VNT.insert(MI, CurrVN++);
       Exps.push_back(MI);
+    dbgs() << "M\n";
     }
     CSEPairs.clear();
+    dbgs() << "L.4\n";
     ImplicitDefsToUpdate.clear();
+    dbgs() << "L.5\n";
     ImplicitDefs.clear();
+    dbgs() << "L.6\n";
   }
 
+    dbgs() << "N\n";
   return Changed;
 }
 
@@ -695,7 +731,9 @@ bool MachineCSE::PerformCSE(MachineDomTreeNode *Node) {
     EnterScope(MBB);
     Changed |= ProcessBlock(MBB);
     // If it's a leaf node, it's done. Traverse upwards to pop ancestors.
+    dbgs() << "ProcessBlcok done\n";
     ExitScopeIfDone(Node, OpenChildren);
+    dbgs() << "ExistSCope\n";
   }
 
   return Changed;

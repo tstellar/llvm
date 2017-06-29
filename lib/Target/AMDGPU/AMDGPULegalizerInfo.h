@@ -31,6 +31,10 @@ public:
 private:
   bool legalizeG_MERGE_VALUES(MachineInstr &MI, MachineRegisterInfo &MRI,
                               MachineIRBuilder &MIRBuilder) const;
+  bool legalizeG_SUB(MachineInstr &MI, MachineRegisterInfo &MRI,
+                     MachineIRBuilder &MIRBuilder) const;
+  bool legalizeG_TRUNC(MachineInstr &MI, MachineRegisterInfo &MRI,
+                       MachineIRBuilder &MIRBuilder) const;
 };
 } // End llvm namespace.
 #endif

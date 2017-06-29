@@ -1488,6 +1488,7 @@ bool PeepholeOptimizer::foldRedundantNAPhysCopy(
 }
 
 bool PeepholeOptimizer::runOnMachineFunction(MachineFunction &MF) {
+        return false;
   if (skipFunction(*MF.getFunction()))
     return false;
 

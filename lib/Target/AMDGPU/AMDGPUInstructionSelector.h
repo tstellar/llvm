@@ -50,6 +50,9 @@ private:
   bool selectCOPY(MachineInstr &I) const;
   bool selectG_CONSTANT(MachineInstr &I) const;
   bool selectG_ADD(MachineInstr &I) const;
+  bool selectG_ASHR(MachineInstr &I) const;
+  bool selectG_BR(MachineInstr &I) const;
+  bool selectG_BRCOND(MachineInstr &I) const;
   bool selectG_EXTRACT_VECTOR_ELT(MachineInstr &I) const;
   bool selectG_GEP(MachineInstr &I) const;
   bool selectG_ICMP(MachineInstr &I) const;
@@ -67,6 +70,8 @@ private:
   bool selectG_MERGE_VALUES(MachineInstr &I) const;
   bool selectG_SELECT(MachineInstr &I) const;
   bool selectG_STORE(MachineInstr &I) const;
+  bool selectG_UNMERGE_VALUES(MachineInstr &I) const;
+  bool selectG_ZEXT(MachineInstr &I) const;
   unsigned getSALUOpcode(const MachineInstr &I) const;
   bool selectSimpleSALU(MachineInstr &I) const;
   unsigned getVALUOpcode(const MachineInstr &I) const;

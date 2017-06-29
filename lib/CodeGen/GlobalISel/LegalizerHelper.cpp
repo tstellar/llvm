@@ -166,6 +166,28 @@ LegalizerHelper::LegalizeResult LegalizerHelper::narrowScalar(MachineInstr &MI,
   switch (MI.getOpcode()) {
   default:
     return UnableToLegalize;
+  case TargetOpcode::G_AND:
+  case TargetOpcode::G_XOR: {
+     LLT DstTy = MRI.getType(MI.getOperand(0).getReg());
+    int NumParts = MRI.getType(MI.getOperand(0).getReg()).getSizeInBits() /
+                   NarrowTy.getSizeInBits();
+
+    SmallVector<unsigned, 2> Src1Regs, Src2Regs, DstRegs;
+    extractParts(MI.getOperand(1).getReg(), NarrowTy, NumParts, Src1Regs);
+    extractParts(MI.getOperand(2).getReg(), NarrowTy, NumParts, Src2Regs);
+    for (int i = 0; i < NumParts; ++i) {
+      unsigned DstReg = MRI.createGenericVirtualRegister(NarrowTy);
+
+      MIRBuilder.buildInstr(MI.getOpcode()).addDef(DstReg)
+                                           .addReg(Src1Regs[i])
+                                           .addReg(Src2Regs[i]);
+      DstRegs.push_back(DstReg);
+    }
+    unsigned DstReg = MI.getOperand(0).getReg();
+    MIRBuilder.buildMerge(DstReg, DstRegs);
+    MI.eraseFromParent();
+    return Legalized;
+  }
   case TargetOpcode::G_ADD: {
     // Expand in terms of carry-setting/consuming G_ADDE instructions.
     int NumParts = MRI.getType(MI.getOperand(0).getReg()).getSizeInBits() /
@@ -280,6 +302,29 @@ LegalizerHelper::LegalizeResult LegalizerHelper::narrowScalar(MachineInstr &MI,
     MI.eraseFromParent();
     return Legalized;
   }
+
+  case TargetOpcode::G_SELECT: {
+     LLT DstTy = MRI.getType(MI.getOperand(0).getReg());
+    int NumParts = MRI.getType(MI.getOperand(0).getReg()).getSizeInBits() /
+                   NarrowTy.getSizeInBits();
+
+    SmallVector<unsigned, 2> Src1Regs, Src2Regs, DstRegs;
+    extractParts(MI.getOperand(2).getReg(), NarrowTy, NumParts, Src1Regs);
+    extractParts(MI.getOperand(3).getReg(), NarrowTy, NumParts, Src2Regs);
+    for (int i = 0; i < NumParts; ++i) {
+      unsigned DstReg = MRI.createGenericVirtualRegister(NarrowTy);
+
+      MIRBuilder.buildSelect(DstReg, MI.getOperand(1).getReg(),
+                             Src1Regs[i], Src2Regs[i]);
+
+      DstRegs.push_back(DstReg);
+    }
+    unsigned DstReg = MI.getOperand(0).getReg();
+    MIRBuilder.buildMerge(DstReg, DstRegs);
+    MI.eraseFromParent();
+    return Legalized;
+  }
+
   case TargetOpcode::G_STORE: {
     unsigned NarrowSize = NarrowTy.getSizeInBits();
     int NumParts =
@@ -648,6 +693,55 @@ LegalizerHelper::lower(MachineInstr &MI, unsigned TypeIdx, LLT Ty) {
         .addDef(Res)
         .addUse(LHS)
         .addUse(Neg);
+    MI.eraseFromParent();
+    return Legalized;
+  }
+  case TargetOpcode::G_SHUFFLE_VECTOR: {
+    unsigned DstReg = MI.getOperand(0).getReg();
+    unsigned Src0Reg = MI.getOperand(1).getReg();
+    unsigned Src1Reg = MI.getOperand(2).getReg();
+    unsigned Src2Reg = MI.getOperand(3).getReg();
+    LLT DstTy = MRI.getType(DstReg);
+    LLT Src0Ty = MRI.getType(Src0Reg);
+    LLT Src1Ty = MRI.getType(Src1Reg);
+    LLT Src2Ty = MRI.getType(Src2Reg);
+
+    LLT ElTy = Src0Ty.getElementType();
+    // FIXME: Should we query the targets for this?
+    LLT IdxTy = Src2Ty.getElementType();
+
+    SmallVector <unsigned, 8> Vals;
+   
+    for (unsigned Src : {Src0Reg, Src1Reg}) { 
+      LLT SrcTy = MRI.getType(Src);
+      for (unsigned i = 0, e = SrcTy.getNumElements(); i != e; ++i) {
+        unsigned Idx = MRI.createGenericVirtualRegister(IdxTy);
+        unsigned Elem = MRI.createGenericVirtualRegister(ElTy);
+        MIRBuilder.buildConstant(Idx, i); 
+        MIRBuilder.buildExtractVectorElement(Elem, Src, Idx);
+        Vals.push_back(Elem);
+      }
+    }
+
+    unsigned MergedReg =
+        MRI.createGenericVirtualRegister(LLT::vector(Vals.size(), ElTy));
+    MIRBuilder.buildMerge(MergedReg, Vals);
+
+    Vals.clear();
+
+    unsigned Shuffle;
+    LLT ShuffleTy = MRI.getType(MI.getOperand(3).getReg());
+    for (unsigned i = 0, e = ShuffleTy.getNumElements(); i != e; ++i) {
+      unsigned Idx = MRI.createGenericVirtualRegister(IdxTy);
+      unsigned ShuffleIdx = MRI.createGenericVirtualRegister(IdxTy);
+      unsigned Elem = MRI.createGenericVirtualRegister(ElTy);
+      MIRBuilder.buildConstant(Idx, i); 
+      MIRBuilder.buildExtractVectorElement(ShuffleIdx, Src2Reg, Idx);
+      MIRBuilder.buildExtractVectorElement(Elem, MergedReg, ShuffleIdx);
+      Vals.push_back(Elem);
+    }
+
+    MIRBuilder.buildMerge(DstReg, Vals);
     MI.eraseFromParent();
     return Legalized;
   }
