@@ -38,6 +38,7 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo() {
   const LLT V2S16 = LLT::vector(2, 16);
   const LLT S16 = LLT::scalar(16);
   const LLT S32 = LLT::scalar(32);
+  const LLT S128 = LLT::scalar(128);
   const LLT V2S32 = LLT::vector(2, 32);
   const LLT V3S32 = LLT::vector(3, 32);
   const LLT V4S32 = LLT::vector(4, 32);
@@ -79,6 +80,10 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo() {
   setAction({G_CONSTANT, S16}, Legal);
   setAction({G_CONSTANT, S32}, Legal);
   setAction({G_CONSTANT, S64}, Legal);
+
+  setAction({G_EXTRACT, S1}, Legal);
+  setAction({G_EXTRACT, S64}, Legal);
+  setAction({G_EXTRACT, 1, S128}, Legal);
 
   setAction({G_EXTRACT_VECTOR_ELT, S32}, Legal);
   setAction({G_EXTRACT_VECTOR_ELT, S64}, Legal);
