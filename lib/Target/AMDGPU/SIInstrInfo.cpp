@@ -1853,6 +1853,7 @@ void SIInstrInfo::insertSelect(MachineBasicBlock &MBB,
 }
 
 bool SIInstrInfo::isFoldableCopy(const MachineInstr &MI) const {
+        return false;
   switch (MI.getOpcode()) {
   case AMDGPU::V_MOV_B32_e32:
   case AMDGPU::V_MOV_B32_e64:
@@ -1906,6 +1907,7 @@ static void removeModOperands(MachineInstr &MI) {
 
 bool SIInstrInfo::FoldImmediate(MachineInstr &UseMI, MachineInstr &DefMI,
                                 unsigned Reg, MachineRegisterInfo *MRI) const {
+        return false;
   if (!MRI->hasOneNonDBGUse(Reg))
     return false;
 
