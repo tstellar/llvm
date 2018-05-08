@@ -391,6 +391,7 @@ AMDGPURegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
   default:
     return getInvalidInstructionMapping();
   case AMDGPU::G_ADD:
+  case AMDGPU::G_ASHR:
   case AMDGPU::G_SUB:
   case AMDGPU::G_MUL:
   case AMDGPU::G_AND:

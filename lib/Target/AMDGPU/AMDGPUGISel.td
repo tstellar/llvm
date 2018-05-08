@@ -129,13 +129,17 @@ def : GISelSop2Pat <add, S_ADD_I32, i32>;
 def : GISelVop2Pat <add, V_ADD_I32_e32, i32>;
 
 def : GISelSop2Pat <sra, S_ASHR_I32, i32>;
+def : GISelSop2Pat <sra, S_LSHL_B32, i32>;
 let AddedComplexity = 100 in {
 let SubtargetPredicate = isSICI in {
 def : GISelVop2Pat <sra, V_ASHR_I32_e32, i32>;
+def : GISelVop2Pat <shl, V_LSHL_B32_e32, i32>;
 }
 def : GISelVop2CommutePat <sra, V_ASHRREV_I32_e32, i32>;
+def : GISelVop2CommutePat <sra, V_LSHL_B32_e32, i32>;
 }
 def : GISelVop3Pat2CommutePat <sra, V_ASHRREV_I32_e64, i32>;
+def : GISelVop3Pat2CommutePat <sra, V_LSHL_B32_e64, i32>;
 
 // FIXME: We can't re-use SelectionDAG patterns here because they match
 // against a custom SDNode and we would need to create a generic machine
