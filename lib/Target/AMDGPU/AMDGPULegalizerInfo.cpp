@@ -16,6 +16,7 @@
 #include "AMDGPULegalizerInfo.h"
 #include "AMDGPUTargetMachine.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
+#include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
@@ -25,6 +26,7 @@
 
 using namespace llvm;
 using namespace LegalizeActions;
+using namespace LegalityPredicates;
 
 AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
                                          const GCNTargetMachine &TM) {
@@ -65,6 +67,16 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
   setAction({G_AND, S32}, Legal);
   setAction({G_OR, S32}, Legal);
   setAction({G_XOR, S32}, Legal);
+
+	getActionDefinitionsBuilder(G_ANYEXT)
+      .legalIf([=](const LegalityQuery &Query) {
+          const LLT &Ty0 = Query.Types[0];
+          const LLT &Ty1 = Query.Types[1];
+          return Ty0.getSizeInBits() % 32 == 0 &&
+                 Ty1.getSizeInBits() % 32 == 0 &&
+                 Ty0.getSizeInBits() <= 512 &&
+                 Ty1.getSizeInBits() <= 512;
+        });
 
   setAction({G_BITCAST, V2S16}, Legal);
   setAction({G_BITCAST, 1, S32}, Legal);
