@@ -174,7 +174,8 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
   for (unsigned Op : {G_EXTRACT_VECTOR_ELT, G_INSERT_VECTOR_ELT}) {
     getActionDefinitionsBuilder(Op)
       .legalIf([=](const LegalityQuery &Query) {
-          const LLT &VecTy = Query.Types[1];
+          const LLT &VecTy = Op == G_INSERT_VECTOR_ELT ? Query.Types[0] :
+                                                        Query.Types[1];
           const LLT &IdxTy = Query.Types[2];
           return VecTy.getSizeInBits() % 32 == 0 &&
             VecTy.getSizeInBits() <= 512 &&
