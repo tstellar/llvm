@@ -161,6 +161,32 @@ bool AMDGPUInstructionSelector::selectG_ADD(MachineInstr &I) const {
   return true;
 }
 
+bool AMDGPUInstructionSelector::selectG_EXTRACT(MachineInstr &I) const {
+  MachineBasicBlock *BB = I.getParent();
+  MachineFunction *MF = BB->getParent();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+  unsigned SubReg = TRI.getSubRegFromChannel(I.getOperand(2).getImm() / 32);
+  DebugLoc DL = I.getDebugLoc();
+  MachineInstr *Copy = BuildMI(*BB, &I, DL, TII.get(TargetOpcode::COPY),
+                               I.getOperand(0).getReg())
+                               .addReg(I.getOperand(1).getReg(), 0, SubReg);
+
+  for (const MachineOperand &MO : Copy->operands()) {
+    if (!MO.isReg())
+      continue;
+    if (TargetRegisterInfo::isPhysicalRegister(MO.getReg()))
+      continue;
+
+    const TargetRegisterClass *RC =
+            TRI.getConstrainedRegClassForOperand(MO, MRI);
+    if (!RC)
+      continue;
+    RBI.constrainGenericRegister(MO.getReg(), *RC, MRI);
+  }
+  I.eraseFromParent();
+  return true;
+}
+
 bool AMDGPUInstructionSelector::selectG_GEP(MachineInstr &I) const {
   return selectG_ADD(I);
 }
@@ -510,6 +536,8 @@ bool AMDGPUInstructionSelector::select(MachineInstr &I,
   case TargetOpcode::G_CONSTANT:
   case TargetOpcode::G_FCONSTANT:
     return selectG_CONSTANT(I);
+  case TargetOpcode::G_EXTRACT:
+    return selectG_EXTRACT(I);
   case TargetOpcode::G_GEP:
     return selectG_GEP(I);
   case TargetOpcode::G_IMPLICIT_DEF:
