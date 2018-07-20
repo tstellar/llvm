@@ -398,6 +398,7 @@ AMDGPURegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
   case AMDGPU::G_OR:
   case AMDGPU::G_XOR:
   case AMDGPU::G_SHL:
+  case AMDGPU::G_ANYEXT:
     if (isSALUMapping(MI))
       return getDefaultMappingSOP(MI);
     // Fall-through

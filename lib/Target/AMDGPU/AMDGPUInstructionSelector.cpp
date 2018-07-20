@@ -856,7 +856,9 @@ bool AMDGPUInstructionSelector::select(MachineInstr &I,
   default:
     return selectImpl(I, CoverageInfo);
   case TargetOpcode::G_INTTOPTR:
+  case TargetOpcode::G_ANYEXT:
   case TargetOpcode::G_BITCAST:
+  case TargetOpcode::G_TRUNC:
     return selectCOPY(I);
   case TargetOpcode::G_CONSTANT:
   case TargetOpcode::G_FCONSTANT:
@@ -879,6 +881,8 @@ bool AMDGPUInstructionSelector::select(MachineInstr &I,
     if (selectImpl(I, CoverageInfo))
       return true;
     return selectG_LOAD(I);
+  case TargetOpcode::G_MERGE_VALUES:
+    return selectG_MERGE_VALUES(I);
   case TargetOpcode::G_SELECT:
     return selectG_SELECT(I);
   case TargetOpcode::G_STORE:

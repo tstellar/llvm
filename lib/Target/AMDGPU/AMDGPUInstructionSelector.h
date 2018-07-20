@@ -80,6 +80,7 @@ private:
   bool canSelectAsSMRD(const MachineInstr &I) const;
   bool selectSMRD(MachineInstr &I, ArrayRef<GEPInfo> AddrInfo) const;
   bool selectG_LOAD(MachineInstr &I) const;
+  bool selectG_MERGE_VALUES(MachineInstr &I) const;
   bool hasOnlySGPROperands(const MachineInstr &I, const MachineRegisterInfo &MRI) const;
   bool selectG_SELECT(MachineInstr &I) const;
   bool selectG_STORE(MachineInstr &I) const;
