@@ -380,6 +380,12 @@ bool LegalizerInfo::legalizeCustom(MachineInstr &MI, MachineRegisterInfo &MRI,
   return false;
 }
 
+bool LegalizerInfo::legalizeIntrinsic(MachineInstr &MI,
+                                   MachineRegisterInfo &MRI,
+                                   MachineIRBuilder &MIRBuilder) const {
+  return true;
+}
+
 LegalizerInfo::SizeAndActionsVec
 LegalizerInfo::increaseToLargerTypesAndDecreaseToLargest(
     const SizeAndActionsVec &v, LegalizeAction IncreaseAction,
