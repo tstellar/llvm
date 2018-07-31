@@ -951,6 +951,9 @@ public:
                               MachineRegisterInfo &MRI,
                               MachineIRBuilder &MIRBuilder) const;
 
+  virtual bool legalizeIntrinsic(MachineInstr &MI, MachineRegisterInfo &MRI,
+                                 MachineIRBuilder &MIRBuilder) const;
+
 private:
   /// Determine what action should be taken to legalize the given generic
   /// instruction opcode, type-index and type. Requires computeTables to have
