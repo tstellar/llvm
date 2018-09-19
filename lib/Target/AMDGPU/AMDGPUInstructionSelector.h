@@ -58,6 +58,7 @@ private:
     GEPInfo(const MachineInstr &GEP) : GEP(GEP), Imm(0) { }
   };
 
+  bool isInstrUniform(const MachineInstr &MI) const;
   /// tblgen-erated 'select' implementation.
   bool selectImpl(MachineInstr &I, CodeGenCoverage &CoverageInfo) const;
 
@@ -89,6 +90,13 @@ private:
   selectVOP3OMods(MachineOperand &Root) const;
   InstructionSelector::ComplexRendererFns
   selectVOP3Mods(MachineOperand &Root) const;
+
+  InstructionSelector::ComplexRendererFns
+  selectSmrdImm(MachineOperand &Root) const;
+  InstructionSelector::ComplexRendererFns
+  selectSmrdImm32(MachineOperand &Root) const;
+  InstructionSelector::ComplexRendererFns
+  selectSmrdSgpr(MachineOperand &Root) const;
 
   const SIInstrInfo &TII;
   const SIRegisterInfo &TRI;

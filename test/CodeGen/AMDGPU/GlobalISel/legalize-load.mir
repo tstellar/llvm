@@ -41,7 +41,8 @@ body: |
 
     ; CHECK-LABEL: name: test_load_global_p1
     ; CHECK: [[COPY:%[0-9]+]]:_(p1) = COPY $vgpr0_vgpr1
-    ; CHECK: [[LOAD:%[0-9]+]]:_(p1) = G_LOAD [[COPY]](p1) :: (load 8, addrspace 1)
+    ; CHECK: [[LOAD_INT:%[0-9]+]]:_(s64) = G_LOAD [[COPY]](p1) :: (load 8, addrspace 1)
+    ; CHECK: [[LOAD:%[0-9]+]]:_(p1) = G_INTTOPTR [[LOAD_INT]]
     ; CHECK: $vgpr0_vgpr1 = COPY [[LOAD]](p1)
     %0:_(p1) = COPY $vgpr0_vgpr1
     %1:_(p1) = G_LOAD %0 :: (load 8, addrspace 1)
@@ -57,7 +58,8 @@ body: |
 
     ; CHECK-LABEL: name: test_load_global_p4
     ; CHECK: [[COPY:%[0-9]+]]:_(p1) = COPY $vgpr0_vgpr1
-    ; CHECK: [[LOAD:%[0-9]+]]:_(p4) = G_LOAD [[COPY]](p1) :: (load 8, addrspace 1)
+    ; CHECK: [[LOAD_INT:%[0-9]+]]:_(s64) = G_LOAD [[COPY]](p1) :: (load 8, addrspace 1)
+    ; CHECK: [[LOAD:%[0-9]+]]:_(p4) = G_INTTOPTR [[LOAD_INT]]
     ; CHECK: $vgpr0_vgpr1 = COPY [[LOAD]](p4)
     %0:_(p1) = COPY $vgpr0_vgpr1
     %1:_(p4) = G_LOAD %0 :: (load 8, addrspace 1)
@@ -74,7 +76,8 @@ body: |
 
     ; CHECK-LABEL: name: test_load_global_p3
     ; CHECK: [[COPY:%[0-9]+]]:_(p1) = COPY $vgpr0_vgpr1
-    ; CHECK: [[LOAD:%[0-9]+]]:_(p3) = G_LOAD [[COPY]](p1) :: (load 4, addrspace 1)
+    ; CHECK: [[LOAD_INT:%[0-9]+]]:_(s32) = G_LOAD [[COPY]](p1) :: (load 4, addrspace 1)
+    ; CHECK: [[LOAD:%[0-9]+]]:_(p3) = G_INTTOPTR [[LOAD_INT]]
     ; CHECK: $vgpr0 = COPY [[LOAD]](p3)
     %0:_(p1) = COPY $vgpr0_vgpr1
     %1:_(p3) = G_LOAD %0 :: (load 4, addrspace 1)

@@ -28,6 +28,9 @@ class AMDGPULegalizerInfo : public LegalizerInfo {
 public:
   AMDGPULegalizerInfo(const GCNSubtarget &ST,
                       const GCNTargetMachine &TM);
+
+  bool legalizeCustom(MachineInstr &MI, MachineRegisterInfo &MRI,
+                      MachineIRBuilder &MIRBuilder) const override;
 };
 } // End llvm namespace.
 #endif

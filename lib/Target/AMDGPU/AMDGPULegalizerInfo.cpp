@@ -17,6 +17,7 @@
 #include "AMDGPUTargetMachine.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
 #include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Support/Debug.h"
@@ -126,6 +127,9 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
     .legalIf([=, &ST](const LegalityQuery &Query) {
         const LLT &Ty0 = Query.Types[0];
 
+        if (Query.Opcode == G_LOAD && Ty0.isPointer())
+          return false;
+
         // TODO: Decompose private loads into 4-byte components.
         // TODO: Illegal flat loads on SI
         switch (Ty0.getSizeInBits()) {
@@ -144,7 +148,12 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
         default:
           return false;
         }
-      });
+      })
+    .customIf([](const LegalityQuery &Query) {
+      // TODO: Tablegen can't handle loads/stores of pointer types so we
+      // need to custom lower these.
+      return Query.Opcode == G_LOAD && Query.Types[0].isPointer();
+    });
 
 
 
@@ -211,4 +220,32 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
 
   computeTables();
   verify(*ST.getInstrInfo());
+}
+
+bool AMDGPULegalizerInfo::legalizeCustom(MachineInstr &MI,
+                                         MachineRegisterInfo &MRI,
+                                         MachineIRBuilder &MIRBuilder) const {
+  MIRBuilder.setInstr(MI);
+  MachineFunction &MF = *MI.getParent()->getParent();
+  switch (MI.getOpcode()) {
+  default:
+    // No idea what to do.
+    return false;
+  case TargetOpcode::G_LOAD: {
+    unsigned DstReg = MI.getOperand(0).getReg();
+    LLT LoadTy = MRI.getType(DstReg);
+    if (!LoadTy.isPointer())
+      return false;
+    unsigned LoadSize = LoadTy.getSizeInBits();
+    assert(LoadSize % 32 == 0);
+
+    LLT IntTy = LLT::scalar(LoadSize);
+    unsigned IntReg = MRI.createGenericVirtualRegister(IntTy);
+    MIRBuilder.buildInstr(TargetOpcode::G_LOAD, IntReg,
+                          MI.getOperand(1).getReg())->cloneMemRefs(MF, MI);
+    MIRBuilder.buildCast(DstReg, IntReg);
+    MI.eraseFromParent();
+    return true;
+  }
+  }
 }
