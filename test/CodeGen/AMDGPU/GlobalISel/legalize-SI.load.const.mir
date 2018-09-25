@@ -1,0 +1,27 @@
+# RUN: llc -march=amdgcn -run-pass=legalizer %s -verify-machineinstrs -o - | FileCheck %s
+
+---
+name: test_SI_load_const
+body: |
+  bb.0:
+    liveins: $sgpr0_sgpr1_sgpr2_sgpr3, $sgpr4
+
+    ; CHECK: [[PTR:%[0-9]+]]:_(<4 x s32>) = COPY $sgpr0_sgpr1_sgpr2_sgpr3
+    ; CHECK: [[OFFSET:%[0-9]+]]:_(s32) = COPY $sgpr4
+    ; CHECK: [[PTR_INT:%[0-9]+]]:_(s128) = G_BITCAST [[PTR]]
+    ; CHECK: [[P7:%[0-9]+]]:_(p7) = G_INTTOPTR [[PTR_INT]](s128)
+    ; CHECK: [[SRSRC:%[0-9]+]]:_(p7) = G_GEP [[P7]], [[OFFSET]]
+    ; CHECK: G_LOAD [[SRSRC]](p7)
+
+    ; CHECK: [[IMM_OFFSET:%[0-9]+]]:_(s32) = G_CONSTANT i32 0
+    ; CHECK: [[PTR_INT:%[0-9]+]]:_(s128) = G_BITCAST [[PTR]](<4 x s32>)
+    ; CHECK: [[P7:%[0-9]+]]:_(p7) = G_INTTOPTR [[PTR_INT]](s128)
+    ; CHECK: [[SRSRC_IMM:%[0-9]+]]:_(p7) = G_GEP [[P7]], [[IMM_OFFSET]]
+    ; CHECK: G_LOAD [[SRSRC_IMM]](p7)
+    %0:_(<4 x s32>) = COPY $sgpr0_sgpr1_sgpr2_sgpr3
+    %1:_(s32) = COPY $sgpr4
+    %2:_(s32) = G_INTRINSIC intrinsic(@llvm.SI.load.const.v4i32), %0:_(<4 x s32>), %1:_(s32)
+    %3:_(s32) = G_CONSTANT i32 0
+    %4:_(s32) = G_INTRINSIC intrinsic(@llvm.SI.load.const.v4i32), %0:_(<4 x s32>), %3:_(s32)
+    S_ENDPGM implicit %2, implicit %4
+...
