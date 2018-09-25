@@ -756,3 +756,12 @@ include "AMDGPUInstructions.td"
 include "SIInstrInfo.td"
 include "AMDGPUCallingConv.td"
 include "AMDGPUSearchableTables.td"
+
+def G_GCN_CVT_PKRTZ_F16_F32 : Instruction {
+  let OutOperandList = (outs type0:$dst);
+  let InOperandList = (ins type1:$src0, type1:$src1);
+  let hasSideEffects = 0;
+  let isCodeGenOnly = 1;
+  let isPseudo = 1;
+  let hasNoSchedulingInfo = 1;
+}

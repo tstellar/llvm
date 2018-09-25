@@ -503,6 +503,72 @@ bool AMDGPUInstructionSelector::hasOnlySGPROperands(const MachineInstr &I,
   return true;
 }
 
+static unsigned getSubRegEnum(const SIRegisterInfo &TRI, unsigned Idx,
+                              unsigned Size) {
+  if (Size == 32)
+    return TRI.getSubRegFromChannel(Idx);
+
+  if (Size == 64) {
+    switch (Idx) {
+    case 0:
+      return AMDGPU::sub0_sub1;
+    case 1:
+      return AMDGPU::sub2_sub3;
+    case 2:
+      return AMDGPU::sub4_sub5;
+    case 3:
+      return AMDGPU::sub6_sub7;
+    case 4:
+      return AMDGPU::sub8_sub9;
+    case 5:
+      return AMDGPU::sub10_sub11;
+    case 6:
+      return AMDGPU::sub12_sub13;
+    case 7:
+      return AMDGPU::sub14_sub15;
+    }
+  }
+  llvm_unreachable("Invalid Idx");
+}
+
+bool AMDGPUInstructionSelector::selectG_MERGE_VALUES(MachineInstr &I) const {
+  MachineBasicBlock *BB = I.getParent();
+  MachineFunction *MF = BB->getParent();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+  const DebugLoc &DL = I.getDebugLoc();
+
+  unsigned DstReg = I.getOperand(0).getReg();
+  unsigned Src0 = I.getOperand(1).getReg();
+  unsigned Src1 = I.getOperand(2).getReg();
+  unsigned SizeDst = RBI.getSizeInBits(DstReg, MRI, TRI);
+  unsigned Size0 = RBI.getSizeInBits(Src0, MRI, TRI);
+  unsigned Size1 = RBI.getSizeInBits(Src1, MRI, TRI);
+
+  if (SizeDst != 32 && Size1 != 16) {
+    MachineInstrBuilder RegSeq = BuildMI(*BB, &I, DL,
+                                         TII.get(AMDGPU::REG_SEQUENCE), DstReg);
+
+    for (unsigned i = 1, e = I.getNumOperands(); i != e; ++i) {
+      RegSeq.addReg(I.getOperand(i).getReg());
+      RegSeq.addImm(getSubRegEnum(TRI, i - 1, Size0));
+    }
+
+    for (const MachineOperand &MO : I.operands()) {
+      if (TargetRegisterInfo::isPhysicalRegister(MO.getReg()))
+        continue;
+
+      const TargetRegisterClass *RC =
+              TRI.getConstrainedRegClassForOperand(MO, MRI);
+      if (!RC)
+        continue;
+      RBI.constrainGenericRegister(MO.getReg(), *RC, MRI);
+    }
+    I.eraseFromParent();
+    return true;
+  }
+  return false;
+}
+
 bool AMDGPUInstructionSelector::selectG_SELECT(MachineInstr &I) const {
   MachineBasicBlock *BB = I.getParent();
   MachineFunction *MF = BB->getParent();

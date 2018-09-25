@@ -75,6 +75,8 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
   setAction({G_BITCAST, S128}, Legal);
   setAction({G_BITCAST, 1, V4S32}, Legal);
 
+  setAction({G_BRCOND, S1}, Legal);
+
   getActionDefinitionsBuilder(G_FCONSTANT)
     .legalFor({S32, S64});
 
@@ -86,6 +88,7 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
     .legalIf([=](const LegalityQuery &Query) {
         return Query.Types[0].getSizeInBits() <= 512;
     })
+     .widenScalarToNextPow2(0)
     .clampScalar(0, S1, S512);
 
   getActionDefinitionsBuilder(G_CONSTANT)
@@ -132,6 +135,13 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
     .legalIf([](const LegalityQuery &Query) {
       return true;
     });
+  setAction({G_PHI, S32}, Legal);
+
+  setAction({G_PTRTOINT, S32}, Legal);
+  setAction({G_PTRTOINT, 1, P6}, Legal);
+
+//  setAction({G_PTRTOINT, S32}, Legal);
+//  setAction({G_PTRTOINT, 1, P7}, Legal);
 
   getActionDefinitionsBuilder({G_LOAD, G_STORE})
     .legalIf([=, &ST](const LegalityQuery &Query) {
