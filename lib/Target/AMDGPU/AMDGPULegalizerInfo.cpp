@@ -15,6 +15,7 @@
 #include "AMDGPU.h"
 #include "AMDGPULegalizerInfo.h"
 #include "AMDGPUTargetMachine.h"
+#include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
@@ -35,9 +36,11 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
 
   const LLT S1 = LLT::scalar(1);
   const LLT V2S16 = LLT::vector(2, 16);
+  const LLT V4S32 = LLT::vector(4, 32);
 
   const LLT S32 = LLT::scalar(32);
   const LLT S64 = LLT::scalar(64);
+  const LLT S128 = LLT::scalar(128);
   const LLT S512 = LLT::scalar(512);
 
   const LLT GlobalPtr = GetAddrSpacePtr(AMDGPUAS::GLOBAL_ADDRESS);
@@ -45,6 +48,7 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
   const LLT LocalPtr = GetAddrSpacePtr(AMDGPUAS::LOCAL_ADDRESS);
   const LLT FlatPtr = GetAddrSpacePtr(AMDGPUAS::FLAT_ADDRESS);
   const LLT PrivatePtr = GetAddrSpacePtr(AMDGPUAS::PRIVATE_ADDRESS);
+  const LLT P7 = GetAddrSpacePtr(7);
 
   const LLT AddrSpaces[] = {
     GlobalPtr,
@@ -67,6 +71,9 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
 
   setAction({G_BITCAST, S32}, Legal);
   setAction({G_BITCAST, 1, V2S16}, Legal);
+
+  setAction({G_BITCAST, S128}, Legal);
+  setAction({G_BITCAST, 1, V4S32}, Legal);
 
   getActionDefinitionsBuilder(G_FCONSTANT)
     .legalFor({S32, S64});
@@ -114,6 +121,9 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
     setAction({G_GEP, PtrTy}, Legal);
     setAction({G_GEP, 1, IdxTy}, Legal);
   }
+
+  setAction({G_GEP, P7}, Legal);
+  setAction({G_GEP, 1, S32}, Legal);
 
   setAction({G_ICMP, S1}, Legal);
   setAction({G_ICMP, 1, S32}, Legal);
@@ -245,6 +255,52 @@ bool AMDGPULegalizerInfo::legalizeCustom(MachineInstr &MI,
     MIRBuilder.buildInstr(TargetOpcode::G_LOAD, IntReg,
                           MI.getOperand(1).getReg())->cloneMemRefs(MF, MI);
     MIRBuilder.buildCast(DstReg, IntReg);
+    MI.eraseFromParent();
+    return true;
+  }
+  }
+}
+
+bool AMDGPULegalizerInfo::legalizeIntrinsic(MachineInstr &MI,
+                                            MachineRegisterInfo &MRI,
+                                            MachineIRBuilder &MIRBuilder) const {
+  unsigned IntrinsicID = MI.getOpcode() == TargetOpcode::G_INTRINSIC ?
+    MI.getOperand(1).getIntrinsicID() : MI.getOperand(0).getIntrinsicID();
+
+  switch (IntrinsicID) {
+  // All intrinsics are legal by default.
+  default:
+    return true;
+  case AMDGPUIntrinsic::SI_load_const: {
+    MachineFunction &MF = MIRBuilder.getMF();
+    MIRBuilder.setInstr(MI);
+    unsigned DstReg = MI.getOperand(0).getReg();
+    unsigned RsrcReg = MI.getOperand(2).getReg();
+    unsigned AddrReg = 0;
+    LLT IntTy = LLT::scalar(128);
+    unsigned IntReg = MRI.createGenericVirtualRegister(IntTy);
+    MIRBuilder.buildCast(IntReg, RsrcReg);
+
+    LLT PtrTy = LLT::pointer(AMDGPUAS::BUFFER_RSRC, 128);
+    unsigned PtrReg = MRI.createGenericVirtualRegister(PtrTy);
+    MIRBuilder.buildCast(PtrReg, IntReg);
+
+    if (MI.getOperand(3).isReg()) {
+      AddrReg = MRI.createGenericVirtualRegister(PtrTy);
+      MIRBuilder.buildGEP(AddrReg, PtrReg, MI.getOperand(3).getReg());
+    } else {
+      unsigned AddrReg = 0;
+      MIRBuilder.materializeGEP(AddrReg, PtrReg, LLT::scalar(32),
+                                MI.getOperand(3).getImm());
+    }
+
+    MachineMemOperand *MMO = MF.getMachineMemOperand(
+        MachinePointerInfo(),
+        MachineMemOperand::MOLoad | MachineMemOperand::MODereferenceable |
+            MachineMemOperand::MOInvariant,
+        MRI.getType(DstReg).getSizeInBits() / 8, 4);
+
+    MIRBuilder.buildLoad(DstReg, AddrReg, *MMO);
     MI.eraseFromParent();
     return true;
   }

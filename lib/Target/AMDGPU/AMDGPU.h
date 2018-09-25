@@ -239,6 +239,7 @@ namespace AMDGPUAS {
     PRIVATE_ADDRESS = 5,  ///< Address space for private memory.
 
     CONSTANT_ADDRESS_32BIT = 6, ///< Address space for 32-bit constant memory
+    BUFFER_RSRC = 7,
 
     /// Address space for direct addressible parameter memory (CONST0)
     PARAM_D_ADDRESS = 6,

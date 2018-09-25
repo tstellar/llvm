@@ -31,6 +31,8 @@ public:
 
   bool legalizeCustom(MachineInstr &MI, MachineRegisterInfo &MRI,
                       MachineIRBuilder &MIRBuilder) const override;
+  bool legalizeIntrinsic(MachineInstr &MI, MachineRegisterInfo &MRI,
+                         MachineIRBuilder &MIRBuilder) const override;
 };
 } // End llvm namespace.
 #endif
