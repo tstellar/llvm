@@ -188,7 +188,55 @@ bool AMDGPUInstructionSelector::selectG_EXTRACT(MachineInstr &I) const {
 }
 
 bool AMDGPUInstructionSelector::selectG_GEP(MachineInstr &I) const {
-  return selectG_ADD(I);
+  MachineBasicBlock *BB = I.getParent();
+  MachineFunction *MF = BB->getParent();
+  MachineRegisterInfo &MRI = MF->getRegInfo();
+  DebugLoc DL = I.getDebugLoc();
+  const MachineOperand &RsrcOp = I.getOperand(1);
+  unsigned RsrcReg = RsrcOp.getReg();
+  unsigned RsrcSize = RBI.getSizeInBits(RsrcReg, MRI, TRI);
+  unsigned OffsetReg = I.getOperand(2).getReg();
+  unsigned OffsetSize = RBI.getSizeInBits(OffsetReg, MRI, TRI);
+
+  if (RsrcSize == OffsetSize)
+    return selectG_ADD(I);
+
+  if (RsrcSize == 128 && OffsetSize == 64) {
+    unsigned ComposedSubIdx =
+        TRI.composeSubRegIndices(RsrcOp.getSubReg(), AMDGPU::sub0_sub1);
+    unsigned PtrReg = MRI.createVirtualRegister(&AMDGPU::SReg_64RegClass);
+    BuildMI(*BB, &I, DL, TII.get(AMDGPU::COPY), PtrReg)
+            .addReg(RsrcReg, 0, ComposedSubIdx);
+
+    unsigned AddReg = MRI.createVirtualRegister(&AMDGPU::SReg_64RegClass);
+    MachineInstr *Add = BuildMI(*BB, &I, DL, TII.get(TargetOpcode::G_ADD),
+                                AddReg)
+                               .addReg(PtrReg)
+                               .addReg(OffsetReg);
+
+    ComposedSubIdx =
+        TRI.composeSubRegIndices(RsrcOp.getSubReg(), AMDGPU::sub2_sub3);
+    unsigned RsrcHi = MRI.createVirtualRegister(&AMDGPU::SReg_64RegClass);
+    BuildMI(*BB, &I, DL, TII.get(AMDGPU::COPY), RsrcHi)
+            .addReg(RsrcReg, 0, ComposedSubIdx);
+
+    const MachineInstr *RS =
+        BuildMI(*BB, &I, DL, TII.get(AMDGPU::REG_SEQUENCE),
+                I.getOperand(0).getReg())
+              .addReg(AddReg)
+              .addImm(AMDGPU::sub0_sub1)
+              .addReg(RsrcHi)
+              .addImm(AMDGPU::sub2_sub3);
+
+    selectG_ADD(*Add);
+    I.eraseFromParent();
+    const TargetRegisterClass *DstRC =
+        TRI.getConstrainedRegClassForOperand(RS->getOperand(0), MRI);
+    if (!DstRC)
+      return true;
+    return RBI.constrainGenericRegister(I.getOperand(0).getReg(), *DstRC, MRI);
+  }
+  return false;
 }
 
 bool AMDGPUInstructionSelector::selectG_IMPLICIT_DEF(MachineInstr &I) const {
@@ -669,6 +717,23 @@ bool AMDGPUInstructionSelector::hasVgprParts(ArrayRef<GEPInfo> AddrInfo) const {
       return true;
   }
   return false;
+}
+
+bool AMDGPUInstructionSelector::canSelectAsSMRD(const MachineInstr &I) const {
+
+  if (!I.hasOneMemOperand())
+    return false;
+
+  if (!isInstrUniform(I))
+    return false;
+
+  const MachineBasicBlock *BB = I.getParent();
+  const MachineFunction *MF = BB->getParent();
+  const MachineRegisterInfo &MRI = MF->getRegInfo();
+  SmallVector<GEPInfo, 4> AddrInfo;
+
+  getAddrModeInfo(I, MRI, AddrInfo);
+  return !hasVgprParts(AddrInfo);
 }
 
 bool AMDGPUInstructionSelector::selectG_LOAD(MachineInstr &I) const {

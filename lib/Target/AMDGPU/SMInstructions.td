@@ -686,18 +686,15 @@ def S_DCACHE_INV_VOL_ci : SMRD_Real_ci <0x1d, S_DCACHE_INV_VOL>;
 
 def smrd_load : PatFrag <(ops node:$ptr), (load node:$ptr), [{ return isUniformLoad(N);}]> {
   let GISelPredicateCode = [{
-    if (!MI.hasOneMemOperand())
-      return false;
-    if (!isInstrUniform(MI))
+    if (!canSelectAsSMRD(MI))
       return false;
 
-    // FIXME: We should probably be caching this
-    SmallVector<GEPInfo, 4> AddrInfo;
-    getAddrModeInfo(MI, MRI, AddrInfo);
-
-    if (hasVgprParts(AddrInfo))
-      return false;
-    return true;
+    const MachineBasicBlock *BB = MI.getParent();
+    const MachineFunction *MF = BB->getParent();
+    const MachineRegisterInfo &MRI = MF->getRegInfo();
+    LLT Ty = MRI.getType(MI.getOperand(1).getReg());
+    assert(Ty.isPointer());
+    return Ty.getAddressSpace() != AMDGPUAS::BUFFER_RSRC;
   }];
 }
 

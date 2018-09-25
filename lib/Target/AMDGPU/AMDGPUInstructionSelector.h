@@ -77,6 +77,7 @@ private:
   bool hasVgprParts(ArrayRef<GEPInfo> AddrInfo) const;
   void getAddrModeInfo(const MachineInstr &Load, const MachineRegisterInfo &MRI,
                        SmallVectorImpl<GEPInfo> &AddrInfo) const;
+  bool canSelectAsSMRD(const MachineInstr &I) const;
   bool selectSMRD(MachineInstr &I, ArrayRef<GEPInfo> AddrInfo) const;
   bool selectG_LOAD(MachineInstr &I) const;
   bool hasOnlySGPROperands(const MachineInstr &I, const MachineRegisterInfo &MRI) const;
