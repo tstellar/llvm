@@ -156,3 +156,52 @@ def : GISelVop3Pat2ModsPat <int_minnum, V_MIN_F64, f64>;
 // loads and stores to vector types.  This should help simplify the load/store
 // legalization.
 defm : SMRD_Pattern <"S_LOAD_DWORDX2",  i64>;
+
+def smrd_buffer_load : PatFrag <(ops node:$ptr), (load node:$ptr)> {
+  let GISelPredicateCode = [{
+    if (!canSelectAsSMRD(MI))
+      return false;
+
+    const MachineBasicBlock *BB = MI.getParent();
+    const MachineFunction *MF = BB->getParent();
+    const MachineRegisterInfo &MRI = MF->getRegInfo();
+    LLT Ty = MRI.getType(MI.getOperand(1).getReg());
+    assert(Ty.isPointer());
+    return Ty.getAddressSpace() == AMDGPUAS::BUFFER_RSRC;
+  }];
+}
+
+multiclass GISelSBufferLoadPattern <string Instr, ValueType vt> {
+  // 1. Offset as an immediate
+  def : GCNPat <
+    (vt (smrd_buffer_load (v4i32 (SMRDImm v4i32:$sbase, i32:$offset)))),
+    (vt (!cast<SM_Pseudo>(Instr#"_IMM") $sbase, $offset, 0))
+  >;
+
+  // 2. 32-bit IMM offset on CI
+  def : GCNPat <
+    (vt (smrd_buffer_load (v4i32 (SMRDImm32 v4i32:$sbase, i32:$offset)))),
+    (!cast<InstSI>(Instr#"_IMM_ci") $sbase, $offset, 0)> {
+    let OtherPredicates = [isCIOnly];
+  }
+
+  // 3. Offset loaded in an 32bit SGPR
+  def : GCNPat <
+    (vt (smrd_buffer_load (v4i32 (SMRDSgpr v4i32:$sbase, i32:$offset)))),
+    (vt (!cast<SM_Pseudo>(Instr#"_SGPR") $sbase, $offset, 0))
+  >;
+
+  // 4. No offset
+  def : GCNPat <
+    (vt (smrd_buffer_load (v4i32 SReg_128:$sbase))),
+    (vt (!cast<SM_Pseudo>(Instr#"_IMM") v4i32:$sbase, 0, 0))
+  >;
+}
+let AddedComplexity = 100 in {
+
+defm : GISelSBufferLoadPattern <"S_BUFFER_LOAD_DWORD",     i32>;
+defm : GISelSBufferLoadPattern <"S_BUFFER_LOAD_DWORDX2",   v2i32>;
+defm : GISelSBufferLoadPattern <"S_BUFFER_LOAD_DWORDX4",   v4i32>;
+defm : GISelSBufferLoadPattern <"S_BUFFER_LOAD_DWORDX8",   v8i32>;
+defm : GISelSBufferLoadPattern <"S_BUFFER_LOAD_DWORDX16",  v16i32>;
+} // End let AddedComplexity = 100
