@@ -623,6 +623,7 @@ AMDGPURegisterBankInfo::getInstrMapping(const MachineInstr &MI) const {
       OpdsMapping[6] = AMDGPU::getValueMapping(AMDGPU::SGPRRegBankID, 32);
       break;
     }
+    }
     break;
   }
   case AMDGPU::G_INTRINSIC_W_SIDE_EFFECTS: {

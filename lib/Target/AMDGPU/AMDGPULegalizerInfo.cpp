@@ -150,7 +150,7 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
   setAction({G_PHI, S32}, Legal);
 
   setAction({G_PTRTOINT, S32}, Legal);
-  setAction({G_PTRTOINT, 1, P6}, Legal);
+  setAction({G_PTRTOINT, 1, P7}, Legal);
 
 //  setAction({G_PTRTOINT, S32}, Legal);
 //  setAction({G_PTRTOINT, 1, P7}, Legal);
@@ -293,7 +293,6 @@ bool AMDGPULegalizerInfo::legalizeIntrinsic(MachineInstr &MI,
   // All intrinsics are legal by default.
   default:
     return true;
-<<<<<<< HEAD
   case AMDGPUIntrinsic::SI_load_const: {
     MachineFunction &MF = MIRBuilder.getMF();
     MIRBuilder.setInstr(MI);
@@ -327,14 +326,5 @@ bool AMDGPULegalizerInfo::legalizeIntrinsic(MachineInstr &MI,
     MI.eraseFromParent();
     return true;
   }
-  case Intrinsic::amdgcn_cvt_pkrtz:
-    MIRBuilder.setInstr(MI);
-    MRI.setRegClass(MI.getOperand(0).getReg(), &AMDGPU::VGPR_32RegClass);
-    MIRBuilder.buildInstr(AMDGPU::V_CVT_PKRTZ_F16_F32_e64)
-                          .addDef(MI.getOperand(0).getReg())
-                          .addUse(MI.getOperand(2).getReg())
-                          .addUse(MI.getOperand(3).getReg());
-    MI.eraseFromParent();
-    return true;
   }
 }
