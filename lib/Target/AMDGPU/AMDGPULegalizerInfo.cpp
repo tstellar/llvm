@@ -283,11 +283,17 @@ bool AMDGPULegalizerInfo::legalizeCustom(MachineInstr &MI,
   }
 }
 
+static unsigned getIntrinsicID(const MachineInstr &MI) {
+  for (const MachineOperand &MO : MI.operands())
+    if (MO.isIntrinsicID())
+      return MO.getIntrinsicID();
+  return Intrinsic::not_intrinsic;
+}
+
 bool AMDGPULegalizerInfo::legalizeIntrinsic(MachineInstr &MI,
                                             MachineRegisterInfo &MRI,
                                             MachineIRBuilder &MIRBuilder) const {
-  unsigned IntrinsicID = MI.getOpcode() == TargetOpcode::G_INTRINSIC ?
-    MI.getOperand(1).getIntrinsicID() : MI.getOperand(0).getIntrinsicID();
+  unsigned IntrinsicID = getIntrinsicID(MI);
 
   switch (IntrinsicID) {
   // All intrinsics are legal by default.
