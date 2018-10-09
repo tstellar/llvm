@@ -278,26 +278,30 @@ bool AMDGPUCallLowering::lowerFormalArguments(MachineIRBuilder &MIRBuilder,
     CCAssignFn *AssignFn = CCAssignFnForCall(F.getCallingConv(),
                                              /*IsVarArg=*/false);
 
-    if (ValEVT.isVector()) {
-      EVT ElemVT = ValEVT.getVectorElementType();
-      if (!ValEVT.isSimple())
-        return false;
-      MVT ValVT = ElemVT.getSimpleVT();
-      bool Res = AssignFn(i, ValVT, ValVT, CCValAssign::Full,
-                          OrigArg.Flags, CCInfo);
-      if (!Res)
-        return false;
-    } else {
-      MVT ValVT = ValEVT.getSimpleVT();
-      if (!ValEVT.isSimple())
-        return false;
-      bool Res =
-          AssignFn(i, ValVT, ValVT, CCValAssign::Full, OrigArg.Flags, CCInfo);
+    if (!ValEVT.isSimple()) {
+      if (!ValEVT.isVector() ||
+          ValEVT.getVectorNumElements() !=3 ||
+          ValEVT.getVectorElementType() != MVT::i32 ||
+          OrigArg.Flags.isInReg())
+      return false;
 
-      // Fail if we don't know how to handle this type.
-      if (Res)
-        return false;
+      // Special case for v3i32 into vgprs
+      // Up to VGPR0-VGPR135
+      const TargetRegisterClass *RC = &AMDGPU::VReg_96RegClass;
+      unsigned NumRegs = 45;
+      ArrayRef<MCPhysReg> RegList = makeArrayRef(RC->begin(), NumRegs);
+      unsigned RegResult = CCInfo.AllocateReg(RegList);
+      CCInfo.addLoc(CCValAssign::getReg(i, MVT::Other, RegResult, MVT::Other,
+                                        CCValAssign::Full));
+      continue;
     }
+    MVT ValVT = ValEVT.getSimpleVT();
+    bool Res =
+        AssignFn(i, ValVT, ValVT, CCValAssign::Full, OrigArg.Flags, CCInfo);
+
+    // Fail if we don't know how to handle this type.
+    if (Res)
+      return false;
   }
 
   Function::const_arg_iterator Arg = F.arg_begin();
