@@ -48,6 +48,7 @@ public:
 
   bool select(MachineInstr &I, CodeGenCoverage &CoverageInfo) const override;
   static const char *getName();
+  bool canSelectAsSMRD(const MachineInstr &I) const;
 
 private:
   struct GEPInfo {
@@ -77,7 +78,6 @@ private:
   bool hasVgprParts(ArrayRef<GEPInfo> AddrInfo) const;
   void getAddrModeInfo(const MachineInstr &Load, const MachineRegisterInfo &MRI,
                        SmallVectorImpl<GEPInfo> &AddrInfo) const;
-  bool canSelectAsSMRD(const MachineInstr &I) const;
   bool selectSMRD(MachineInstr &I, ArrayRef<GEPInfo> AddrInfo) const;
   bool selectG_LOAD(MachineInstr &I) const;
   bool selectG_MERGE_VALUES(MachineInstr &I) const;

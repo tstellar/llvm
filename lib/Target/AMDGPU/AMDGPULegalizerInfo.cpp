@@ -14,9 +14,12 @@
 
 #include "AMDGPU.h"
 #include "AMDGPULegalizerInfo.h"
+#include "AMDGPUInstructionSelector.h"
 #include "AMDGPUTargetMachine.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
+#include "llvm/CodeGen/GlobalISel/LegalizerHelper.h"
 #include "llvm/CodeGen/GlobalISel/LegalizerInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/TargetOpcodes.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/CodeGen/GlobalISel/MachineIRBuilder.h"
@@ -50,6 +53,7 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
   const LLT LocalPtr = GetAddrSpacePtr(AMDGPUAS::LOCAL_ADDRESS);
   const LLT FlatPtr = GetAddrSpacePtr(AMDGPUAS::FLAT_ADDRESS);
   const LLT PrivatePtr = GetAddrSpacePtr(AMDGPUAS::PRIVATE_ADDRESS);
+  const LLT P6 = GetAddrSpacePtr(6);
   const LLT P7 = GetAddrSpacePtr(7);
 
   const LLT AddrSpaces[] = {
@@ -57,7 +61,8 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
     ConstantPtr,
     LocalPtr,
     FlatPtr,
-    PrivatePtr
+    PrivatePtr,
+    P6
   };
 
   setAction({G_ADD, S32}, Legal);
@@ -184,10 +189,18 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
     .customIf([](const LegalityQuery &Query) {
       // TODO: Tablegen can't handle loads/stores of pointer types so we
       // need to custom lower these.
-      return Query.Opcode == G_LOAD && Query.Types[0].isPointer();
+      const LLT &Ty0 = Query.Types[0];
+      if (Query.Opcode == G_LOAD && Ty0.isPointer())
+        return true;
+      switch(Ty0.getSizeInBits()) {
+      default:
+        return false;
+      case 256:
+      case 512:
+        return true;
+      }
+      
     });
-
-
 
   setAction({G_SELECT, S32}, Legal);
   setAction({G_SELECT, 1, S1}, Legal);
@@ -255,11 +268,28 @@ AMDGPULegalizerInfo::AMDGPULegalizerInfo(const GCNSubtarget &ST,
   verify(*ST.getInstrInfo());
 }
 
+static bool legalizePtrLoad(MachineInstr &MI, MachineRegisterInfo &MRI,
+                            MachineIRBuilder &MIRBuilder) {
+  MachineFunction &MF = *MI.getParent()->getParent();
+  unsigned DstReg = MI.getOperand(0).getReg();
+  LLT LoadTy = MRI.getType(DstReg);
+  unsigned LoadSize = LoadTy.getSizeInBits();
+  assert(LoadSize % 32 == 0);
+
+  LLT IntTy = LLT::scalar(LoadSize);
+  unsigned IntReg = MRI.createGenericVirtualRegister(IntTy);
+  MIRBuilder.buildInstr(TargetOpcode::G_LOAD, IntReg,
+                        MI.getOperand(1).getReg())->cloneMemRefs(MF, MI);
+  MIRBuilder.buildCast(DstReg, IntReg);
+  MI.eraseFromParent();
+  return true;  
+}
+
+
 bool AMDGPULegalizerInfo::legalizeCustom(MachineInstr &MI,
                                          MachineRegisterInfo &MRI,
                                          MachineIRBuilder &MIRBuilder) const {
   MIRBuilder.setInstr(MI);
-  MachineFunction &MF = *MI.getParent()->getParent();
   switch (MI.getOpcode()) {
   default:
     // No idea what to do.
@@ -267,17 +297,9 @@ bool AMDGPULegalizerInfo::legalizeCustom(MachineInstr &MI,
   case TargetOpcode::G_LOAD: {
     unsigned DstReg = MI.getOperand(0).getReg();
     LLT LoadTy = MRI.getType(DstReg);
-    if (!LoadTy.isPointer())
-      return false;
-    unsigned LoadSize = LoadTy.getSizeInBits();
-    assert(LoadSize % 32 == 0);
-
-    LLT IntTy = LLT::scalar(LoadSize);
-    unsigned IntReg = MRI.createGenericVirtualRegister(IntTy);
-    MIRBuilder.buildInstr(TargetOpcode::G_LOAD, IntReg,
-                          MI.getOperand(1).getReg())->cloneMemRefs(MF, MI);
-    MIRBuilder.buildCast(DstReg, IntReg);
-    MI.eraseFromParent();
+    dbgs() << "Load size = " << LoadTy.getSizeInBits() << "\n";
+    if (LoadTy.isPointer())
+      return legalizePtrLoad(MI, MRI, MIRBuilder);
     return true;
   }
   }
@@ -334,3 +356,68 @@ bool AMDGPULegalizerInfo::legalizeIntrinsic(MachineInstr &MI,
   }
   }
 }
+
+bool AMDGPUPostRegBankSelectLegalizerInfo::legalizeWideLoads(MachineInstr &MI,
+                                                       MachineRegisterInfo &MRI,
+                                           MachineIRBuilder &MIRBuilder) const {
+  dbgs() << "LegalizeWideLoads\n";
+  MachineFunction &MF = *MI.getParent()->getParent();
+  // We can't determine if wide loads are illegal before RegBankSelect,
+  // so we say they are legal.  These will be legalized after RegBankSelect.
+  if (!MF.getProperties().hasProperty(
+      MachineFunctionProperties::Property::RegBankSelected))
+    return true;
+
+  const AMDGPUInstructionSelector *ISel =
+    static_cast<const AMDGPUInstructionSelector*>(ST.getInstructionSelector());
+  if (ISel->canSelectAsSMRD(MI))
+    return true;
+
+  // Split vectors here.  
+  LegalizerHelper Helper(MF);
+  unsigned DstReg = MI.getOperand(0).getReg();
+  LLT LoadTy = MRI.getType(DstReg);
+  LLT NarrowTy;
+  if (LoadTy.isVector())
+    NarrowTy = LLT::vector(LoadTy.getNumElements() / 2, LoadTy.getElementType());
+  else
+    NarrowTy = LLT::scalar(LoadTy.getSizeInBits() / 2); 
+  dbgs() << "Custom Lower\n";
+  return Helper.narrowScalar(MI, 0, NarrowTy) != LegalizerHelper::UnableToLegalize;
+}
+
+
+AMDGPUPostRegBankSelectLegalizerInfo::AMDGPUPostRegBankSelectLegalizerInfo(
+    const GCNSubtarget &ST, const GCNTargetMachine &TM) :
+    AMDGPULegalizerInfo(ST, TM), ST(ST) {
+  using namespace TargetOpcode;
+
+  getActionDefinitionsBuilder(G_LOAD)
+    .legalIf([](const LegalityQuery &Query) {
+        const LLT &Ty0 = Query.Types[0];
+        return Ty0.getSizeInBits() < 256;
+      })
+    .customIf([](const LegalityQuery &Query) {
+      const LLT &Ty0 = Query.Types[0];
+      return Ty0.getSizeInBits() >= 256;
+    });
+}
+
+bool AMDGPUPostRegBankSelectLegalizerInfo::legalizeCustom(MachineInstr &MI,
+                                                       MachineRegisterInfo &MRI,
+                                           MachineIRBuilder &MIRBuilder) const {
+  MIRBuilder.setInstr(MI);
+  switch (MI.getOpcode()) {
+  default:
+    // No idea what to do.
+    return false;
+  case TargetOpcode::G_LOAD: {
+    unsigned DstReg = MI.getOperand(0).getReg();
+    LLT LoadTy = MRI.getType(DstReg);
+    if (LoadTy.getSizeInBits() >= 256)
+      return legalizeWideLoads(MI, MRI, MIRBuilder);
+    return true;
+  }
+  }
+}
+

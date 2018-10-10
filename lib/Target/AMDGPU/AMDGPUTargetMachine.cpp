@@ -829,6 +829,7 @@ bool GCNPassConfig::addLegalizeMachineIR() {
 
 bool GCNPassConfig::addRegBankSelect() {
   addPass(new RegBankSelect());
+  addPass(new Legalizer());
   return false;
 }
 

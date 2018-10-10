@@ -26,6 +26,7 @@
 
 namespace llvm {
 
+class LegalizerInfo;
 class MachineRegisterInfo;
 
 class Legalizer : public MachineFunctionPass {
@@ -37,9 +38,11 @@ private:
   /// Initialize the field members using \p MF.
   void init(MachineFunction &MF);
 
+  const LegalizerInfo *LInfo;
+
 public:
   // Ctor, nothing fancy.
-  Legalizer();
+  Legalizer(const LegalizerInfo *LInfo = nullptr);
 
   StringRef getPassName() const override { return "Legalizer"; }
 

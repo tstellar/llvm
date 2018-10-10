@@ -26,13 +26,25 @@ class GCNSubtarget;
 /// This class provides the information for the target register banks.
 class AMDGPULegalizerInfo : public LegalizerInfo {
 public:
-  AMDGPULegalizerInfo(const GCNSubtarget &ST,
-                      const GCNTargetMachine &TM);
+  AMDGPULegalizerInfo(const GCNSubtarget &ST, const GCNTargetMachine &TM);
 
   bool legalizeCustom(MachineInstr &MI, MachineRegisterInfo &MRI,
                       MachineIRBuilder &MIRBuilder) const override;
   bool legalizeIntrinsic(MachineInstr &MI, MachineRegisterInfo &MRI,
                          MachineIRBuilder &MIRBuilder) const override;
+};
+
+class AMDGPUPostRegBankSelectLegalizerInfo final : public AMDGPULegalizerInfo {
+  const GCNSubtarget &ST;
+
+  bool legalizeWideLoads(MachineInstr &MI, MachineRegisterInfo &MRI,
+                         MachineIRBuilder &MIRBuilder) const;
+public:
+  AMDGPUPostRegBankSelectLegalizerInfo(const GCNSubtarget &ST, 
+                                       const GCNTargetMachine &TM);
+  bool legalizeCustom(MachineInstr &MI, MachineRegisterInfo &MRI,
+                      MachineIRBuilder &MIRBuilder) const override;
+
 };
 } // End llvm namespace.
 #endif

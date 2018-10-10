@@ -290,6 +290,7 @@ private:
   std::unique_ptr<AMDGPUCallLowering> CallLoweringInfo;
   std::unique_ptr<InstructionSelector> InstSelector;
   std::unique_ptr<LegalizerInfo> Legalizer;
+  std::unique_ptr<LegalizerInfo> PostRegBankSelectLegalizer;
   std::unique_ptr<RegisterBankInfo> RegBankInfo;
 
 protected:
@@ -410,6 +411,10 @@ public:
 
   const LegalizerInfo *getLegalizerInfo() const override {
     return Legalizer.get();
+  }
+
+  const LegalizerInfo *getPostRegBankSelectLegalizerInfo() const {
+    return PostRegBankSelectLegalizer.get();
   }
 
   const RegisterBankInfo *getRegBankInfo() const override {

@@ -41,7 +41,8 @@ INITIALIZE_PASS_END(Legalizer, DEBUG_TYPE,
                     "Legalize the Machine IR a function's Machine IR", false,
                     false)
 
-Legalizer::Legalizer() : MachineFunctionPass(ID) {
+Legalizer::Legalizer(const LegalizerInfo *LInfo) :
+    MachineFunctionPass(ID), LInfo(LInfo) {
   initializeLegalizerPass(*PassRegistry::getPassRegistry());
 }
 
@@ -77,7 +78,9 @@ bool Legalizer::runOnMachineFunction(MachineFunction &MF) {
   init(MF);
   const TargetPassConfig &TPC = getAnalysis<TargetPassConfig>();
   MachineOptimizationRemarkEmitter MORE(MF, /*MBFI=*/nullptr);
-  LegalizerHelper Helper(MF);
+  if (!LInfo)
+    LInfo = MF.getSubtarget().getLegalizerInfo();
+  LegalizerHelper Helper(MF, *LInfo);
 
   const size_t NumBlocks = MF.size();
   MachineRegisterInfo &MRI = MF.getRegInfo();
@@ -115,8 +118,7 @@ bool Legalizer::runOnMachineFunction(MachineFunction &MF) {
     }
     LLVM_DEBUG(dbgs() << ".. .. New MI: " << *MI;);
   });
-  const LegalizerInfo &LInfo(Helper.getLegalizerInfo());
-  LegalizationArtifactCombiner ArtCombiner(Helper.MIRBuilder, MF.getRegInfo(), LInfo);
+  LegalizationArtifactCombiner ArtCombiner(Helper.MIRBuilder, MF.getRegInfo(), *LInfo);
   auto RemoveDeadInstFromLists = [&InstList,
                                   &ArtifactList](MachineInstr *DeadMI) {
     InstList.remove(DeadMI);
