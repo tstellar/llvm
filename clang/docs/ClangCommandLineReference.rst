@@ -198,6 +198,10 @@ Filename (or -) to write dependency output to
 
 Emit Clang AST files for source inputs
 
+.. option:: -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang<arg>
+
+Trivial automatic variable initialization to zero is only here for benchmarks, it'll eventually be removed, and I'm OK with that because I'm only using it to benchmark
+
 .. option:: -exported\_symbols\_list <arg>
 
 .. option:: -faligned-new=<arg>
@@ -210,10 +214,6 @@ Use approximate transcendental functions
 
 Flush denormal floating point values to zero in CUDA device mode.
 
-.. option:: -fcuda-rdc, -fno-cuda-rdc
-
-Generate relocatable device code, also known as separate compilation mode.
-
 .. option:: -fcuda-short-ptr, -fno-cuda-short-ptr
 
 Use 32-bit pointers for accessing const/local/shared address spaces.
@@ -221,6 +221,10 @@ Use 32-bit pointers for accessing const/local/shared address spaces.
 .. option:: -ffixed-r19
 
 Reserve register r19 (Hexagon only)
+
+.. option:: -fgpu-rdc, -fcuda-rdc, -fno-gpu-rdc
+
+Generate relocatable device code, also known as separate compilation mode.
 
 .. option:: -fheinous-gnu-extensions
 
@@ -253,6 +257,10 @@ Use the gcc toolchain at the given directory
 .. option:: -gcodeview
 
 Generate CodeView debug information
+
+.. option:: -gcodeview-ghash, -gno-codeview-ghash
+
+Emit type record hashes in a .debug$H section
 
 .. option:: -headerpad\_max\_install\_names<arg>
 
@@ -287,6 +295,10 @@ Make the next included directory (-I or -F) an indexer header map
 .. program:: clang
 
 .. option:: -mbig-endian, -EB
+
+.. option:: -mbranch-protection=<arg>
+
+Enforce targets of indirect branches and function returns
 
 .. option:: --migrate
 
@@ -798,15 +810,7 @@ Don't use blacklist file for sanitizers
 
 .. option:: -fparse-all-comments
 
-.. option:: -frecord-command-line, -frecord-gcc-switches, -fno-record-command-line, -fno-record-gcc-switches
-
-Generate a section named ".GCC.command.line" containing the clang driver
-command-line. After linking, the section may contain multiple command lines,
-which will be individually terminated by null bytes. Separate arguments within
-a command line are combined with spaces; spaces and backslashes within an
-argument are escaped with backslashes. This format differs from the format of
-the equivalent section produced by GCC with the -frecord-gcc-switches flag.
-This option is currently only supported on ELF targets.
+.. option:: -frecord-command-line, -fno-record-command-line, -frecord-gcc-switches
 
 .. option:: -fsanitize-address-field-padding=<arg>
 
@@ -816,19 +820,17 @@ Level of field padding for AddressSanitizer
 
 Enable linker dead stripping of globals in AddressSanitizer
 
-.. option:: -fsanitize-address-use-odr-indicator, -fno-sanitize-address-use-odr-indicator
-
-Enable ODR indicator globals to avoid false ODR violation reports in partially sanitized programs at the cost of an increase in binary size
-
 .. option:: -fsanitize-address-poison-custom-array-cookie, -fno-sanitize-address-poison-custom-array-cookie
 
-Enable "poisoning" array cookies when allocating arrays with a custom operator new\[\] in Address Sanitizer, preventing accesses to the cookies from user code. An array cookie is a small implementation-defined header added to certain array allocations to record metadata such as the length of the array. Accesses to array cookies from user code are technically allowed by the standard but are more likely to be the result of an out-of-bounds array access.
-
-An operator new\[\] is "custom" if it is not one of the allocation functions provided by the C++ standard library. Array cookies from non-custom allocation functions are always poisoned.
+Enable poisoning array cookies when using custom operator new\[\] in AddressSanitizer
 
 .. option:: -fsanitize-address-use-after-scope, -fno-sanitize-address-use-after-scope
 
 Enable use-after-scope detection in AddressSanitizer
+
+.. option:: -fsanitize-address-use-odr-indicator, -fno-sanitize-address-use-odr-indicator
+
+Enable ODR indicator globals to avoid false ODR violation reports in partially sanitized programs at the cost of an increase in binary size
 
 .. option:: -fsanitize-blacklist=<arg>
 
@@ -845,6 +847,10 @@ Generalize pointers in CFI indirect call type signature checks
 .. option:: -fsanitize-coverage=<arg1>,<arg2>..., -fno-sanitize-coverage=<arg1>,<arg2>...
 
 Specify the type of coverage instrumentation for Sanitizers
+
+.. option:: -fsanitize-hwaddress-abi=<arg>
+
+Select the HWAddressSanitizer ABI to target (interceptor or platform, default interceptor)
 
 .. option:: -fsanitize-link-c++-runtime
 
@@ -1078,6 +1084,10 @@ Set directory to include search path with prefix
 
 Add directory to SYSTEM include search path, absolute paths are relative to -isysroot
 
+.. option:: --libomptarget-nvptx-path=<arg>
+
+Path to libomptarget-nvptx libraries
+
 .. option:: --ptxas-path=<arg>
 
 Path to ptxas (used for compiling CUDA code)
@@ -1287,6 +1297,8 @@ Enable C++ static destructor registration (the default)
 
 Instrument control-flow architecture protection. Options: return, branch, full, none.
 
+.. option:: -fcf-runtime-abi=<arg>
+
 .. option:: -fchar8\_t, -fno-char8\_t
 
 Enable C++ builtin type char8\_t
@@ -1346,6 +1358,10 @@ Emit macro debug information
 .. option:: -fdebug-prefix-map=<arg>
 
 remap file source paths in debug info
+
+.. option:: -fdebug-ranges-base-address, -fno-debug-ranges-base-address
+
+Use DWARF base address selection entries in debug\_ranges
 
 .. option:: -fdebug-types-section, -fno-debug-types-section
 
@@ -1655,6 +1671,8 @@ Synthesize retain and release calls for Objective-C pointers
 
 Use EH-safe code when synthesizing retains and releases in -fobjc-arc
 
+.. option:: -fobjc-convert-messages-to-runtime-calls, -fno-objc-convert-messages-to-runtime-calls
+
 .. option:: -fobjc-exceptions, -fno-objc-exceptions
 
 Enable Objective-C exceptions
@@ -1741,6 +1759,14 @@ Load the named plugin (dynamic shared object)
 
 .. option:: -fprofile-dir=<arg>
 
+.. option:: -fprofile-exclude-files=<arg>
+
+Instrument only functions from files where names don't match all the regexes separated by a semi-colon
+
+.. option:: -fprofile-filter-files=<arg>
+
+Instrument only functions from files where names match any regex separated by a semi-colon
+
 .. option:: -fprofile-generate, -fno-profile-generate
 
 Generate instrumented code to collect execution counts into default.profraw (overridden by LLVM\_PROFILE\_FILE env var)
@@ -1768,6 +1794,10 @@ Generate instrumented code to collect execution counts into <file> (overridden b
 .. program:: clang
 
 Use instrumentation data for profile-guided optimization
+
+.. option:: -fprofile-remapping-file=<file>, -fprofile-remapping-file <arg>
+
+Use the remappings described in <file> to match the profile data against names in the program
 
 .. option:: -fprofile-sample-accurate, -fauto-profile-accurate, -fno-profile-sample-accurate
 
@@ -1880,19 +1910,23 @@ Enable the superword-level parallelism vectorization passes
 
 Provide minimal debug info in the object/executable to facilitate online symbolication/stack traces in the absence of .dwo/.dwp files when using Split DWARF
 
+.. option:: -fsplit-lto-unit, -fno-split-lto-unit
+
+Enables splitting of the LTO unit.
+
 .. option:: -fsplit-stack
 
 .. option:: -fstack-protector, -fno-stack-protector
 
-Enable stack protectors for functions potentially vulnerable to stack smashing
+Enable stack protectors for some functions vulnerable to stack smashing. This uses a loose heuristic which considers functions vulnerable if they contain a char (or 8bit integer) array or constant sized calls to alloca, which are of greater size than ssp-buffer-size (default: 8 bytes). All variable sized calls to alloca are considered vulnerable
 
 .. option:: -fstack-protector-all
 
-Force the usage of stack protectors for all functions
+Enable stack protectors for all functions
 
 .. option:: -fstack-protector-strong
 
-Use a strong heuristic to apply stack protectors to functions
+Enable stack protectors for some functions vulnerable to stack smashing. Compared to -fstack-protector, this uses a stronger heuristic that includes functions containing arrays of any size (and any type), as well as any calls to alloca or the taking of an address from a local variable
 
 .. option:: -fstack-size-section, -fno-stack-size-section
 
@@ -1974,6 +2008,10 @@ Specify the function to be called on overflow
 
 Process trigraph sequences
 
+.. option:: -ftrivial-auto-var-init=<arg>
+
+Initialize trivial automatic stack variables: uninitialized (default) \| pattern
+
 .. option:: -funique-section-names, -fno-unique-section-names
 
 Use unique names for text and data sections (ELF Only)
@@ -2011,6 +2049,10 @@ Use the given vector functions library
 Enable the loop vectorization passes
 
 .. option:: -fverbose-asm, -fno-verbose-asm, -dA
+
+.. option:: -fvisibility-global-new-delete-hidden
+
+Give global C++ operator new and delete declarations hidden visibility
 
 .. option:: -fvisibility-inlines-hidden
 
@@ -2174,7 +2216,7 @@ Link stack frames through backchain on System Z
 
 .. option:: -mconsole<arg>
 
-.. option:: -mcpu=<arg>, -mv5 (equivalent to -mcpu=hexagonv5), -mv55 (equivalent to -mcpu=hexagonv55), -mv60 (equivalent to -mcpu=hexagonv60), -mv62 (equivalent to -mcpu=hexagonv62), -mv65 (equivalent to -mcpu=hexagonv65)
+.. option:: -mcpu=<arg>, -mv5 (equivalent to -mcpu=hexagonv5), -mv55 (equivalent to -mcpu=hexagonv55), -mv60 (equivalent to -mcpu=hexagonv60), -mv62 (equivalent to -mcpu=hexagonv62), -mv65 (equivalent to -mcpu=hexagonv65), -mv66 (equivalent to -mcpu=hexagonv66)
 
 Use -mcpu=? to see a list of supported cpu models.
 
@@ -2209,6 +2251,8 @@ Enable merging of globals
 .. option:: -mhard-float
 
 .. option:: -mhwdiv=<arg>, --mhwdiv <arg>, --mhwdiv=<arg>
+
+.. option:: -mhwmult=<arg>
 
 .. option:: -miamcu, -mno-iamcu
 
@@ -2286,6 +2330,8 @@ Select return address signing scope
 
 Use software floating point
 
+.. option:: -mspeculative-load-hardening, -mno-speculative-load-hardening
+
 .. option:: -mstack-alignment=<arg>
 
 Set the stack alignment
@@ -2310,6 +2356,10 @@ The thread model to use, e.g. posix, single (posix by default)
 
 .. option:: -mthumb, -mno-thumb
 
+.. option:: -mtls-direct-seg-refs, -mno-tls-direct-seg-refs
+
+Enable direct TLS access through segment registers (default)
+
 .. option:: -mtune=<arg>
 
 Use -mtune=? to see a list of supported cpu models.
@@ -2330,50 +2380,6 @@ Use -mtune=? to see a list of supported cpu models.
 
 AARCH64
 -------
-.. option:: -ffixed-x1
-
-Reserve the x1 register (AArch64 only)
-
-.. option:: -ffixed-x2
-
-Reserve the x2 register (AArch64 only)
-
-.. option:: -ffixed-x3
-
-Reserve the x3 register (AArch64 only)
-
-.. option:: -ffixed-x4
-
-Reserve the x4 register (AArch64 only)
-
-.. option:: -ffixed-x5
-
-Reserve the x5 register (AArch64 only)
-
-.. option:: -ffixed-x6
-
-Reserve the x6 register (AArch64 only)
-
-.. option:: -ffixed-x7
-
-Reserve the x7 register (AArch64 only)
-
-.. option:: -ffixed-x18
-
-Reserve the x18 register (AArch64 only)
-
-.. option:: -ffixed-x20
-
-Reserve the x20 register (AArch64 only)
-
-.. option:: -fcall-saved-x8
-
-Make the x8 register call-saved (AArch64 only)
-
-.. option:: -fcall-saved-x9
-
-Make the x9 register call-saved (AArch64 only)
-
 .. option:: -fcall-saved-x10
 
 Make the x10 register call-saved (AArch64 only)
@@ -2402,6 +2408,50 @@ Make the x15 register call-saved (AArch64 only)
 
 Make the x18 register call-saved (AArch64 only)
 
+.. option:: -fcall-saved-x8
+
+Make the x8 register call-saved (AArch64 only)
+
+.. option:: -fcall-saved-x9
+
+Make the x9 register call-saved (AArch64 only)
+
+.. option:: -ffixed-x1
+
+Reserve the 1 register (AArch64 only)
+
+.. option:: -ffixed-x18
+
+Reserve the 18 register (AArch64 only)
+
+.. option:: -ffixed-x2
+
+Reserve the 2 register (AArch64 only)
+
+.. option:: -ffixed-x20
+
+Reserve the 20 register (AArch64 only)
+
+.. option:: -ffixed-x3
+
+Reserve the 3 register (AArch64 only)
+
+.. option:: -ffixed-x4
+
+Reserve the 4 register (AArch64 only)
+
+.. option:: -ffixed-x5
+
+Reserve the 5 register (AArch64 only)
+
+.. option:: -ffixed-x6
+
+Reserve the 6 register (AArch64 only)
+
+.. option:: -ffixed-x7
+
+Reserve the 7 register (AArch64 only)
+
 .. option:: -mfix-cortex-a53-835769, -mno-fix-cortex-a53-835769
 
 Workaround Cortex-A53 erratum 835769 (AArch64 only)
@@ -2412,6 +2462,7 @@ Generate code which only uses the general purpose registers (AArch64 only)
 
 AMDGPU
 ------
+<<<<<<< HEAD
 .. option:: -mcumode, -mno-cumode
 
 CU wavefront execution mode is used if enabled and WGP wavefront execution mode
@@ -2420,6 +2471,15 @@ is used if disabled (AMDGPU only)
 .. option:: -mwavefrontsize64, -mno-wavefrontsize64
 
 Wavefront size 64 is used if enabled and wavefront size 32 if disabled (AMDGPU only)
+=======
+.. option:: -mcode-object-v3, -mno-code-object-v3
+
+Enable code object v3 (AMDGPU only)
+
+.. option:: -msram-ecc, -mno-sram-ecc
+
+Enable SRAM ECC (AMDGPU only)
+>>>>>>> release/8.x
 
 .. option:: -mxnack, -mno-xnack
 
@@ -2618,6 +2678,8 @@ WebAssembly
 .. option:: -msign-ext, -mno-sign-ext
 
 .. option:: -msimd128, -mno-simd128
+
+.. option:: -munimplemented-simd128, -mno-unimplemented-simd128
 
 X86
 ---
@@ -2842,6 +2904,10 @@ ___________
 
 .. option:: -ggdb3
 
+.. option:: -gline-directives-only
+
+Emit debug line info directives only
+
 .. option:: -gline-tables-only, -g1, -gmlt
 
 Emit debug line number tables only
@@ -2872,9 +2938,15 @@ Embed source text in DWARF debug sections
 
 .. option:: -gpubnames, -gno-pubnames
 
-.. option:: -grecord-command-line, -grecord-gcc-switches, -gno-record-command-line, -gno-record-gcc-switches
+.. option:: -grecord-command-line, -gno-record-command-line, -grecord-gcc-switches
 
 .. option:: -gsplit-dwarf
+
+.. program:: clang1
+.. option:: -gsplit-dwarf=<arg>
+.. program:: clang
+
+Set DWARF fission mode to either 'split' or 'single'
 
 .. option:: -gstrict-dwarf, -gno-strict-dwarf
 

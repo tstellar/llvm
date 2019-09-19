@@ -393,6 +393,7 @@ Symbol *SymbolTable::addDefinedEvent(StringRef name, uint32_t flags,
   return s;
 }
 
+<<<<<<< HEAD
 Symbol *SymbolTable::addUndefinedFunction(StringRef name, StringRef importName,
                                           StringRef importModule,
                                           uint32_t flags, InputFile *file,
@@ -436,10 +437,19 @@ Symbol *SymbolTable::addUndefinedFunction(StringRef name, StringRef importName,
         replaceSym();
     }
   }
+=======
+Symbol *SymbolTable::addUndefinedFunction(StringRef Name, StringRef ImportName,
+                                          StringRef ImportModule,
+                                          uint32_t Flags, InputFile *File,
+                                          const WasmSignature *Sig) {
+  LLVM_DEBUG(dbgs() << "addUndefinedFunction: " << Name <<
+             " [" << (Sig ? toString(*Sig) : "none") << "]\n");
+>>>>>>> release/8.x
 
   return s;
 }
 
+<<<<<<< HEAD
 Symbol *SymbolTable::addUndefinedData(StringRef name, uint32_t flags,
                                       InputFile *file) {
   LLVM_DEBUG(dbgs() << "addUndefinedData: " << name << "\n");
@@ -458,6 +468,15 @@ Symbol *SymbolTable::addUndefinedData(StringRef name, uint32_t flags,
     checkDataType(s, file);
   return s;
 }
+=======
+  if (WasInserted)
+    replaceSymbol<UndefinedFunction>(S, Name, ImportName, ImportModule, Flags,
+                                     File, Sig);
+  else if (auto *Lazy = dyn_cast<LazySymbol>(S))
+    Lazy->fetch();
+  else
+    checkFunctionType(S, File, Sig);
+>>>>>>> release/8.x
 
 Symbol *SymbolTable::addUndefinedGlobal(StringRef name, StringRef importName,
                                         StringRef importModule, uint32_t flags,
@@ -494,8 +513,16 @@ void SymbolTable::addLazy(ArchiveFile *file, const Archive::Symbol *sym) {
     return;
   }
 
+<<<<<<< HEAD
   if (!s->isUndefined())
     return;
+=======
+Symbol *SymbolTable::addUndefinedGlobal(StringRef Name, StringRef ImportName,
+                                        StringRef ImportModule, uint32_t Flags,
+                                        InputFile *File,
+                                        const WasmGlobalType *Type) {
+  LLVM_DEBUG(dbgs() << "addUndefinedGlobal: " << Name << "\n");
+>>>>>>> release/8.x
 
   // The existing symbol is undefined, load a new one from the archive,
   // unless the the existing symbol is weak in which case replace the undefined
@@ -513,8 +540,19 @@ void SymbolTable::addLazy(ArchiveFile *file, const Archive::Symbol *sym) {
     return;
   }
 
+<<<<<<< HEAD
   LLVM_DEBUG(dbgs() << "replacing existing undefined\n");
   file->addMember(sym);
+=======
+  if (WasInserted)
+    replaceSymbol<UndefinedGlobal>(S, Name, ImportName, ImportModule, Flags,
+                                   File, Type);
+  else if (auto *Lazy = dyn_cast<LazySymbol>(S))
+    Lazy->fetch();
+  else if (S->isDefined())
+    checkGlobalType(S, File, Type);
+  return S;
+>>>>>>> release/8.x
 }
 
 bool SymbolTable::addComdat(StringRef name) {

@@ -1161,6 +1161,7 @@ enum InEnum2 : int {
 enum class InEnum3 {
   THREE = indirect_builtin_constant_p("abc")
 };
+<<<<<<< HEAD
 
 // [class.ctor]p4:
 //   A constructor can be invoked for a const, volatile or const volatile
@@ -1223,3 +1224,5 @@ namespace PR39728 {
     ~Comment1() = default;
   };
 }
+=======
+>>>>>>> release/8.x

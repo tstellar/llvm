@@ -2,8 +2,11 @@
 Getting started with clangd
 ===========================
 
+<<<<<<< HEAD
 .. contents::
 
+=======
+>>>>>>> release/8.x
 .. role:: raw-html(raw)
    :format: html
 
@@ -324,7 +327,11 @@ symlink it (or copy it) to the root of your source tree, if they are different.
 
 ::
 
+<<<<<<< HEAD
   $ ln -s ~/myproject-build/compile_commands.json ~/myproject/
+=======
+  $ ln -s ~/myproject/compile_commands.json ~/myproject-build/
+>>>>>>> release/8.x
 
 :raw-html:`</details>`
 
@@ -352,6 +359,11 @@ Clangd will assume the compile command is ``clang $FLAGS some_file.cc``.
 Creating this file by hand is a reasonable place to start if your project is
 quite simple.
 
+<<<<<<< HEAD
+=======
+.. _project-wide-index:
+
+>>>>>>> release/8.x
 Project-wide Index
 ==================
 
@@ -368,4 +380,8 @@ project-wide index to clangd.  There are two ways to do this.
   Then you can pass generated index file to clangd using
   `-index-file=/path/to/index_file`.  *Note that clangd-indexer isn't
   included alongside clangd in the Debian clang-tools package. You will
+<<<<<<< HEAD
   likely have to build it from source to use this option.*
+=======
+  likely have to build clangd from source to use this option.*
+>>>>>>> release/8.x

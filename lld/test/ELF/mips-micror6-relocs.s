@@ -25,8 +25,13 @@
 # CHECK-NEXT:            beqzc  $3, -36
 # CHECK-NEXT:            balc   -24 <foo>
 
+<<<<<<< HEAD
 # CHECK: 00020100 g F     .text  00000000 0x80 foo
 # CHECK: 00020110         .text  00000000 0x80 __start
+=======
+# SYM: 00020000 g F     .text  00000000 0x80 foo
+# SYM: 00020010         .text  00000000 0x80 __start
+>>>>>>> release/8.x
 
   .text
   .set micromips

@@ -5428,14 +5428,24 @@ static void handleMSP430InterruptAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
   }
 
   if (hasFunctionProto(D) && getFunctionOrMethodNumParams(D) != 0) {
+<<<<<<< HEAD
     S.Diag(D->getLocation(), diag::warn_interrupt_attribute_invalid)
         << /*MSP430*/ 1 << 0;
+=======
+    S.Diag(D->getLocation(), diag::warn_msp430_interrupt_attribute)
+        << 0;
+>>>>>>> release/8.x
     return;
   }
 
   if (!getFunctionOrMethodResultType(D)->isVoidType()) {
+<<<<<<< HEAD
     S.Diag(D->getLocation(), diag::warn_interrupt_attribute_invalid)
         << /*MSP430*/ 1 << 1;
+=======
+    S.Diag(D->getLocation(), diag::warn_msp430_interrupt_attribute)
+        << 1;
+>>>>>>> release/8.x
     return;
   }
 
@@ -5633,8 +5643,14 @@ static void handleWebAssemblyImportModuleAttr(Sema &S, Decl *D, const ParsedAttr
   if (!S.checkStringLiteralArgumentAttr(AL, 0, Str, &ArgLoc))
     return;
 
+<<<<<<< HEAD
   FD->addAttr(::new (S.Context)
                   WebAssemblyImportModuleAttr(S.Context, AL, Str));
+=======
+  FD->addAttr(::new (S.Context) WebAssemblyImportModuleAttr(
+      AL.getRange(), S.Context, Str,
+      AL.getAttributeSpellingListIndex()));
+>>>>>>> release/8.x
 }
 
 static void handleWebAssemblyImportNameAttr(Sema &S, Decl *D, const ParsedAttr &AL) {
@@ -5655,7 +5671,13 @@ static void handleWebAssemblyImportNameAttr(Sema &S, Decl *D, const ParsedAttr &
   if (!S.checkStringLiteralArgumentAttr(AL, 0, Str, &ArgLoc))
     return;
 
+<<<<<<< HEAD
   FD->addAttr(::new (S.Context) WebAssemblyImportNameAttr(S.Context, AL, Str));
+=======
+  FD->addAttr(::new (S.Context) WebAssemblyImportNameAttr(
+      AL.getRange(), S.Context, Str,
+      AL.getAttributeSpellingListIndex()));
+>>>>>>> release/8.x
 }
 
 static void handleRISCVInterruptAttr(Sema &S, Decl *D,

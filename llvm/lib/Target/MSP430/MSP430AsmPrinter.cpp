@@ -16,7 +16,10 @@
 #include "MSP430InstrInfo.h"
 #include "MSP430MCInstLower.h"
 #include "MSP430TargetMachine.h"
+<<<<<<< HEAD
 #include "TargetInfo/MSP430TargetInfo.h"
+=======
+>>>>>>> release/8.x
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
@@ -48,7 +51,10 @@ namespace {
 
     bool runOnMachineFunction(MachineFunction &MF) override;
 
+<<<<<<< HEAD
     void PrintSymbolOperand(const MachineOperand &MO, raw_ostream &O) override;
+=======
+>>>>>>> release/8.x
     void printOperand(const MachineInstr *MI, int OpNum,
                       raw_ostream &O, const char* Modifier = nullptr);
     void printSrcMemOperand(const MachineInstr *MI, int OpNum,

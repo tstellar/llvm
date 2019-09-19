@@ -12367,7 +12367,10 @@ bool Expr::EvaluateAsConstantExpr(EvalResult &Result, ConstExprUsage Usage,
   EvalInfo::EvaluationMode EM = EvalInfo::EM_ConstantExpression;
   EvalInfo Info(Ctx, Result, EM);
   Info.InConstantContext = true;
+<<<<<<< HEAD
 
+=======
+>>>>>>> release/8.x
   if (!::Evaluate(Result.Val, Info, this))
     return false;
 
@@ -13160,9 +13163,14 @@ bool Expr::isPotentialConstantExprUnevaluated(Expr *E,
   Status.Diag = &Diags;
 
   EvalInfo Info(FD->getASTContext(), Status,
+<<<<<<< HEAD
                 EvalInfo::EM_ConstantExpressionUnevaluated);
   Info.InConstantContext = true;
   Info.CheckingPotentialConstantExpression = true;
+=======
+                EvalInfo::EM_PotentialConstantExpressionUnevaluated);
+  Info.InConstantContext = true;
+>>>>>>> release/8.x
 
   // Fabricate a call stack frame to give the arguments a plausible cover story.
   ArrayRef<const Expr*> Args;
