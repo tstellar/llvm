@@ -339,7 +339,11 @@ public:
   /// other mechanism.
   ///
   /// \returns the transformed statement.
+<<<<<<< HEAD
   StmtResult TransformStmt(Stmt *S, StmtDiscardKind SDK = SDK_Discarded);
+=======
+  StmtResult TransformStmt(Stmt *S);
+>>>>>>> release/8.x
 
   /// Transform the given statement.
   ///
@@ -3340,8 +3344,13 @@ private:
                                       bool DeducibleTSTContext);
 };
 
+<<<<<<< HEAD
 template <typename Derived>
 StmtResult TreeTransform<Derived>::TransformStmt(Stmt *S, StmtDiscardKind SDK) {
+=======
+template<typename Derived>
+StmtResult TreeTransform<Derived>::TransformStmt(Stmt *S) {
+>>>>>>> release/8.x
   if (!S)
     return S;
 
@@ -3367,9 +3376,13 @@ StmtResult TreeTransform<Derived>::TransformStmt(Stmt *S, StmtDiscardKind SDK) {
     {
       ExprResult E = getDerived().TransformExpr(cast<Expr>(S));
 
+<<<<<<< HEAD
       if (SDK == SDK_StmtExprResult)
         E = getSema().ActOnStmtExprResult(E);
       return getSema().ActOnExprStmt(E, SDK == SDK_Discarded);
+=======
+      return getSema().ActOnExprStmt(E);
+>>>>>>> release/8.x
     }
   }
 
@@ -4805,8 +4818,7 @@ TreeTransform<Derived>::TransformVariableArrayType(TypeLocBuilder &TLB,
   }
   if (SizeResult.isInvalid())
     return QualType();
-  SizeResult =
-      SemaRef.ActOnFinishFullExpr(SizeResult.get(), /*DiscardedValue*/ false);
+  SizeResult = SemaRef.ActOnFinishFullExpr(SizeResult.get());
   if (SizeResult.isInvalid())
     return QualType();
 
@@ -6626,9 +6638,13 @@ TreeTransform<Derived>::TransformCompoundStmt(CompoundStmt *S,
   bool SubStmtChanged = false;
   SmallVector<Stmt*, 8> Statements;
   for (auto *B : S->body()) {
+<<<<<<< HEAD
     StmtResult Result = getDerived().TransformStmt(
         B, IsStmtExpr && B == ExprResult ? SDK_StmtExprResult : SDK_Discarded);
 
+=======
+    StmtResult Result = getDerived().TransformStmt(B);
+>>>>>>> release/8.x
     if (Result.isInvalid()) {
       // Immediately fail if this was a DeclStmt, since it's very
       // likely that this will cause problems for future statements.
